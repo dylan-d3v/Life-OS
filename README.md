@@ -4,7 +4,7 @@ Proyecto "Life OS &amp; Asistente IA" Visión General del Proyecto El objetivo p
 
 Contexto Específico: Fases y Componentes
 
-1. El Software (Fase 1 - MVP)
+1. El Software (Fase Software - MVP)
 
 Plataforma: Aplicación nativa para Windows, con el objetivo de ser migrada a dispositivos móviles en el futuro. Se utilizará Flutter (o .NET MAUI) como framework principal por su capacidad multiplataforma.
 
@@ -30,7 +30,7 @@ Backend: Supabase o Firebase (para que esté siempre encendido y accesible para 
 
 Privacidad: La aplicación de Windows encriptará todos los datos personales de forma local antes de enviarlos a la nube. El servidor solo almacenará cadenas de texto cifradas ilegibles.
 
-1. El Hardware (Fase 2 - Asistente de Bolsillo)
+1. El Hardware (Fase Hardware - Asistente de Bolsillo)
 
 Inspiración: Basado en el concepto del video de YouTube de Huy Vector ("Building a Tiny Pocket AI Assistant" - https://youtu.be/25RGnr407PM).
 
@@ -47,3 +47,16 @@ Flujo: El audio se pasa a texto -&gt; Kev analiza el texto para extraer la inten
 Implementación a corto plazo: Dado mi hardware actual, este flujo se simulará inicialmente usando una API rápida en la nube (ej. Groq). A futuro, se planea alojar el cerebro de Kev localmente en una Raspberry Pi o Mini PC dedicada.
 
 Instrucción para la IA en este cuaderno: He subido a este cuaderno varias fuentes de información (documentación de Kev/Jev, el video de referencia del ESP32, guías de Flutter y arquitectura). Por favor, revisa estas fuentes y confirma que entiendes este contexto general y específico. Una vez lo confirmes, te pediré el diseño del primer esquema de base de datos para la aplicación de Windows.
+
+---
+
+## Documentación Técnica y Fases del Software
+
+Todas las especificaciones técnicas, diagramas de arquitectura y hojas de ruta de cada componente se encuentran organizadas en el directorio `docs/`:
+
+* **[Índice Maestro de Especificaciones](docs/INDEX.md)**
+* **[Fase 1: Arquitectura General y Cifrado E2EE](docs/01_ARQUITECTURA_Y_E2EE.md)**
+* **[Fase 2: Esquema de Base de Datos y Modelo de Persistencia](docs/02_ESQUEMA_BASE_DE_DATOS.md)**
+* **[Fase 3: Software MVP (Flutter Desktop Windows)](docs/03_FASE_SOFTWARE_MVP.md)**
+* **[Fase 4: Inteligencia Artificial y Lógica de Acciones (Kev/Jev)](docs/04_FASE_IA_Y_LOGICA_ACCIONES.md)**
+* **[Fase 5: Hardware Satélite (ESP32 Pocket Assistant)](docs/05_FASE_HARDWARE_ESP32.md)**
