@@ -6,17 +6,18 @@ import '../../../core/crypto/crypto.dart';
 /// Repositorio encargado de la autenticación con Supabase y
 /// del desbloqueo simultáneo de la bóveda criptográfica local E2EE.
 class AuthRepository {
-  final SupabaseClient client;
+  final SupabaseClient? client;
   final KeyVaultService vault;
 
   AuthRepository({
-    required this.client,
+    this.client,
     required this.vault,
   });
 
-  User? get currentUser => client.auth.currentUser;
+  User? get currentUser => client?.auth.currentUser;
 
-  Stream<AuthState> get authStateChanges => client.auth.onAuthStateChange;
+  Stream<AuthState> get authStateChanges =>
+      client?.auth.onAuthStateChange ?? const Stream.empty();
 
   bool get isVaultUnlocked => vault.isUnlocked;
 
@@ -34,7 +35,12 @@ class AuthRepository {
     required String password,
     required String masterKeyPassword,
   }) async {
-    final response = await client.auth.signInWithPassword(
+    final supabase = client;
+    if (supabase == null) {
+      throw StateError('El cliente de Supabase no está inicializado.');
+    }
+
+    final response = await supabase.auth.signInWithPassword(
       email: email.trim(),
       password: password,
     );
@@ -56,7 +62,12 @@ class AuthRepository {
     required String password,
     required String masterKeyPassword,
   }) async {
-    final response = await client.auth.signUp(
+    final supabase = client;
+    if (supabase == null) {
+      throw StateError('El cliente de Supabase no está inicializado.');
+    }
+
+    final response = await supabase.auth.signUp(
       email: email.trim(),
       password: password,
     );
@@ -88,6 +99,6 @@ class AuthRepository {
   /// Cierra sesión en Supabase y destruye la clave de memoria en la bóveda.
   Future<void> signOut() async {
     vault.lockVault();
-    await client.auth.signOut();
+    await client?.auth.signOut();
   }
 }

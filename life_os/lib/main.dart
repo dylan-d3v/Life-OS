@@ -9,7 +9,7 @@ import 'package:window_manager/window_manager.dart';
 import 'core/providers/crypto_providers.dart';
 import 'features/auth/presentation/auth_controller.dart';
 import 'features/auth/presentation/auth_screen.dart';
-import 'features/home/presentation/home_screen.dart';
+import 'features/shell/presentation/desktop_scaffold.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -75,7 +75,7 @@ class LifeOSApp extends ConsumerWidget {
           final user = authState.session?.user;
           // El usuario solo accede si tiene sesión en Supabase y la bóveda E2EE está desbloqueada
           if (user != null && vault.isUnlocked) {
-            return const HomeScreen();
+            return const DesktopScaffold();
           }
           return const AuthScreen();
         },
