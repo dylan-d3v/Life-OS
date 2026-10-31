@@ -409,7 +409,7 @@ class _NoteCard extends ConsumerWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      DateFormat('dd MMM yyyy, HH:mm', 'es')
+                      DateFormat('dd/MM/yyyy HH:mm')
                           .format(note.updatedAt),
                       style: const TextStyle(
                         color: Color(0xFF64748B),
