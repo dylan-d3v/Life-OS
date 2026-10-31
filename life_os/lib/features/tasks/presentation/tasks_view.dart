@@ -472,7 +472,7 @@ class _DueDateBadge extends StatelessWidget {
           Icon(Icons.calendar_today, size: 12, color: textColor),
           const SizedBox(width: 4),
           Text(
-            DateFormat('dd MMM', 'es').format(dueDate),
+            DateFormat('dd/MM/yyyy').format(dueDate),
             style: TextStyle(color: textColor, fontSize: 11),
           ),
         ],
