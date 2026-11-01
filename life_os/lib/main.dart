@@ -17,8 +17,16 @@ Future<void> main() async {
   // 1. Cargar variables de entorno desde .env
   await dotenv.load(fileName: '.env');
 
-  final supabaseUrl = dotenv.env['SUPABASE_URL'] ?? '';
-  final supabaseAnonKey = dotenv.env['SUPABASE_ANON_KEY'] ?? '';
+  var supabaseUrl = (dotenv.env['SUPABASE_URL'] ?? '').trim();
+  final supabaseAnonKey = (dotenv.env['SUPABASE_ANON_KEY'] ?? '').trim();
+
+  // Sanitizar URL base de Supabase (remover /rest/v1 o trailing slash si se copiaron de PostgREST)
+  if (supabaseUrl.endsWith('/')) {
+    supabaseUrl = supabaseUrl.substring(0, supabaseUrl.length - 1);
+  }
+  if (supabaseUrl.endsWith('/rest/v1')) {
+    supabaseUrl = supabaseUrl.substring(0, supabaseUrl.length - 8);
+  }
 
   if (supabaseUrl.isEmpty || supabaseAnonKey.isEmpty) {
     debugPrint('ADVERTENCIA: SUPABASE_URL o SUPABASE_ANON_KEY no están definidos en .env');

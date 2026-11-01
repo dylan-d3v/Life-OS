@@ -6,10 +6,12 @@ import '../../finance/presentation/finance_provider.dart';
 import '../../notes/presentation/notes_provider.dart';
 import '../../projects/presentation/projects_provider.dart';
 import '../../tasks/presentation/tasks_provider.dart';
+import '../data/daily_briefing_service.dart';
 import '../data/groq_llm_service.dart';
 import '../data/kev_action_dispatcher.dart';
 import '../data/kev_llm_service.dart';
 import '../data/mock_llm_service.dart';
+import '../domain/daily_briefing.dart';
 
 /// Proveedor del servicio de inferencia de Kev.
 ///
@@ -33,6 +35,22 @@ final kevLlmServiceProvider = Provider<KevLlmService>((ref) {
   return MockLlmService();
 });
 
+/// Proveedor del servicio de síntesis de briefing diario.
+final dailyBriefingServiceProvider = Provider<DailyBriefingService>((ref) {
+  return DailyBriefingService(
+    taskRepository: ref.watch(taskRepositoryProvider),
+    calendarRepository: ref.watch(calendarRepositoryProvider),
+    financeRepository: ref.watch(financeRepositoryProvider),
+    vault: ref.watch(keyVaultServiceProvider),
+  );
+});
+
+/// Proveedor del resumen matutino inteligente (Daily Briefing) para el día actual.
+final dailyBriefingProvider = FutureProvider<DailyBriefing>((ref) async {
+  final service = ref.watch(dailyBriefingServiceProvider);
+  return service.generateBriefing();
+});
+
 /// Proveedor del despachador de acciones tipadas de Kev.
 ///
 /// Conecta la intención interpretada por Kev con los repositorios criptográficos
@@ -47,5 +65,6 @@ final kevActionDispatcherProvider = Provider<KevActionDispatcher>((ref) {
     calendarRepository: ref.watch(calendarRepositoryProvider),
     financeRepository: ref.watch(financeRepositoryProvider),
     vault: ref.watch(keyVaultServiceProvider),
+    dailyBriefingService: ref.watch(dailyBriefingServiceProvider),
   );
 });

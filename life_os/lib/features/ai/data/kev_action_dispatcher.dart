@@ -8,6 +8,7 @@ import '../../projects/data/project_repository.dart';
 import '../../tasks/data/task_repository.dart';
 import '../../tasks/domain/task_item.dart';
 import '../domain/kev_action.dart';
+import 'daily_briefing_service.dart';
 
 /// Resultado de la ejecución de una acción interpretada por Kev.
 class KevExecutionResult {
@@ -69,6 +70,7 @@ class KevActionDispatcher {
   final CalendarRepository calendarRepository;
   final FinanceRepository financeRepository;
   final KeyVaultService vault;
+  final DailyBriefingService? dailyBriefingService;
 
   KevActionDispatcher({
     required this.taskRepository,
@@ -77,6 +79,7 @@ class KevActionDispatcher {
     required this.calendarRepository,
     required this.financeRepository,
     required this.vault,
+    this.dailyBriefingService,
   });
 
   /// Ejecuta la acción tipada y retorna un resultado estructurado con
@@ -246,6 +249,17 @@ class KevActionDispatcher {
   }
 
   Future<KevExecutionResult> _handleQuery(QueryAction action) async {
+    if (dailyBriefingService != null) {
+      final briefing = await dailyBriefingService!.generateBriefing(
+        forDate: action.targetDate,
+      );
+      return KevExecutionResult.success(
+        userMessage: briefing.formattedSummary,
+        actionType: action.actionName,
+        createdItem: briefing,
+      );
+    }
+
     try {
       final tasks = await taskRepository.fetchTasks();
       final pendingCount =

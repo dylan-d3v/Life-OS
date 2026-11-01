@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../ai/presentation/widgets/daily_briefing_card.dart';
 import '../domain/task_item.dart';
 import 'tasks_provider.dart';
 
@@ -67,6 +68,9 @@ class TasksView extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 20),
+
+          // ── Briefing Inteligente de Kev ──
+          const DailyBriefingCard(),
 
           // ── Filtros rápidos ──
           Row(
