@@ -1,6 +1,13 @@
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/providers/crypto_providers.dart';
+import '../../calendar/presentation/calendar_provider.dart';
+import '../../finance/presentation/finance_provider.dart';
+import '../../notes/presentation/notes_provider.dart';
+import '../../projects/presentation/projects_provider.dart';
+import '../../tasks/presentation/tasks_provider.dart';
 import '../data/groq_llm_service.dart';
+import '../data/kev_action_dispatcher.dart';
 import '../data/kev_llm_service.dart';
 import '../data/mock_llm_service.dart';
 
@@ -26,3 +33,19 @@ final kevLlmServiceProvider = Provider<KevLlmService>((ref) {
   return MockLlmService();
 });
 
+/// Proveedor del despachador de acciones tipadas de Kev.
+///
+/// Conecta la intención interpretada por Kev con los repositorios criptográficos
+/// E2EE del sistema (`TaskRepository`, `NoteRepository`, `ProjectRepository`,
+/// `CalendarRepository`, `FinanceRepository`), utilizando la clave activa
+/// de la sesión provista por [keyVaultServiceProvider].
+final kevActionDispatcherProvider = Provider<KevActionDispatcher>((ref) {
+  return KevActionDispatcher(
+    taskRepository: ref.watch(taskRepositoryProvider),
+    noteRepository: ref.watch(noteRepositoryProvider),
+    projectRepository: ref.watch(projectRepositoryProvider),
+    calendarRepository: ref.watch(calendarRepositoryProvider),
+    financeRepository: ref.watch(financeRepositoryProvider),
+    vault: ref.watch(keyVaultServiceProvider),
+  );
+});
