@@ -2,6 +2,7 @@
 #include "config.h"
 #include "i2s_audio_driver.h"
 #include "audio_recorder.h"
+#include "audio_player.h"
 #include "button_manager.h"
 
 /**
@@ -13,6 +14,7 @@
 // Instancias de los controladores de hardware
 I2SAudioDriver audioDriver;
 AudioRecorder audioRecorder;
+AudioPlayer audioPlayer;
 ButtonManager pttButton(PIN_BUTTON_PTT, BUTTON_DEBOUNCE_MS);
 
 void printWakeupReason() {
@@ -55,22 +57,26 @@ void setup() {
     pinMode(PIN_LED_STATUS, OUTPUT);
     digitalWrite(PIN_LED_STATUS, LOW);
 
-    // Inicializar driver de micrófono I2S (INMP441)
+    // 1. Inicializar amplificador I2S de salida (MAX98357A)
+    if (audioPlayer.begin()) {
+        audioPlayer.setVolume(0.85f);
+        // Tono de bienvenida y verificación del altavoz
+        audioPlayer.playTone(SystemTone::STARTUP);
+    } else {
+        Serial.println(F("[ERROR] No se pudo inicializar el reproductor I2S"));
+    }
+
+    // 2. Inicializar driver de micrófono I2S de entrada (INMP441)
     if (!audioDriver.initMicrophone()) {
         Serial.println(F("[ERROR] No se pudo inicializar el micrófono I2S"));
     }
 
-    // Inicializar grabador de audio (WAV)
+    // 3. Inicializar grabador de audio (WAV)
     if (!audioRecorder.begin(&audioDriver, 2.5f)) {
         Serial.println(F("[ERROR] No se pudo asignar buffer de grabación WAV"));
     }
 
-    // Parpadeo de confirmación en LED de estado
-    digitalWrite(PIN_LED_STATUS, HIGH);
-    delay(150);
-    digitalWrite(PIN_LED_STATUS, LOW);
-
-    Serial.println(F("[READY] Presiona y mantén presionado el botón PTT para grabar voz..."));
+    Serial.println(F("[READY] Presiona y mantén presionado el botón PTT para hablar..."));
 }
 
 void loop() {
@@ -79,7 +85,10 @@ void loop() {
     // Evento: Botón acaba de ser presionado (inicio de Push-to-Talk)
     if (pttButton.wasPressed()) {
         digitalWrite(PIN_LED_STATUS, HIGH);
-        Serial.println(F("[PTT] >> Botón presionado: Iniciando captura de audio..."));
+        // Bip de confirmación acústica
+        audioPlayer.playTone(SystemTone::START_LISTENING);
+
+        Serial.println(F("[PTT] >> Botón presionado: Capturando audio..."));
         audioRecorder.startRecording();
     }
 
@@ -91,17 +100,25 @@ void loop() {
     // Evento: Botón acaba de ser soltado (fin de Push-to-Talk)
     if (pttButton.wasReleased()) {
         digitalWrite(PIN_LED_STATUS, LOW);
-        Serial.printf("[PTT] << Botón soltado tras %u ms. Finalizando audio...\n", pttButton.getHoldDurationMs());
-        
         audioRecorder.stopRecording();
+        audioPlayer.playTone(SystemTone::STOP_LISTENING);
+
+        Serial.printf("[PTT] << Botón soltado tras %u ms.\n", pttButton.getHoldDurationMs());
 
         if (audioRecorder.getWavSize() > 44) {
-            Serial.printf("[AUDIO] Buffer WAV generado con éxito: %u bytes (%u ms)\n",
+            Serial.printf("[AUDIO] Grabación exitosa: %u bytes (%u ms)\n",
                           (unsigned int)audioRecorder.getWavSize(),
                           (unsigned int)audioRecorder.getDurationMs());
-            Serial.println(F("[PIPELINE] Listo para transmitir a STT (Groq Whisper / Google Cloud)"));
+
+            // Reproducción acústica local para prueba de hardware (Loopback)
+            Serial.println(F("[TEST] Reproduciendo audio grabado por el altavoz..."));
+            audioPlayer.playWav(audioRecorder.getWavBuffer(), audioRecorder.getWavSize());
+
+            // Confirmación de éxito
+            audioPlayer.playTone(SystemTone::SUCCESS);
         } else {
-            Serial.println(F("[AUDIO] Grabación descartada por ser demasiado corta"));
+            Serial.println(F("[AUDIO] Grabación descartada (duración insuficiente)"));
+            audioPlayer.playTone(SystemTone::ERROR_TONE);
         }
     }
 
