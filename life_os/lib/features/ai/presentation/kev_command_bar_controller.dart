@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../calendar/presentation/calendar_provider.dart';
 import '../../finance/presentation/finance_provider.dart';
@@ -73,18 +74,26 @@ class KevCommandBarNotifier extends Notifier<KevCommandBarState> {
 
     state = state.copyWith(isProcessing: true, errorMessage: null);
 
+    debugPrint('\n═══════════════════════════════════════════════════════════');
+    debugPrint('▶️ [PASO 1/4] Entrada recibida en Command Bar: "$query"');
+
     try {
       final llmService = ref.read(kevLlmServiceProvider);
       final dispatcher = ref.read(kevActionDispatcherProvider);
 
+      debugPrint('▶️ [PASO 2/4] Enviando al motor LLM: ${llmService.providerName}...');
       // 1. Interpretar lenguaje natural con LLM y Structured Tool Calling
       final action = await llmService.parseUserIntent(query);
+      debugPrint('   🎯 Acción tipada identificada: ${action.actionName}');
 
+      debugPrint('▶️ [PASO 3/4] Despachando acción hacia repositorios con E2EE...');
       // 2. Ejecutar la acción tipada con cifrado E2EE
       final result = await dispatcher.dispatch(action);
+      debugPrint('   ${result.success ? "✅ Éxito" : "❌ Fallo"}: "${result.userMessage}"');
 
       // 3. Si la persistencia fue exitosa, invalidar los proveedores para actualizar la UI en vivo
       if (result.success) {
+        debugPrint('▶️ [PASO 4/4] Refrescando listas de la interfaz en tiempo real (${result.actionType})...');
         switch (result.actionType) {
           case 'create_task':
             ref.invalidate(taskListProvider);
@@ -103,6 +112,7 @@ class KevCommandBarNotifier extends Notifier<KevCommandBarState> {
             break;
         }
       }
+      debugPrint('═══════════════════════════════════════════════════════════\n');
 
       // 4. Agregar la interacción al historial de la sesión
       final historyItem = KevCommandHistoryItem(

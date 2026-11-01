@@ -105,7 +105,10 @@ class GeminiLlmService implements KevLlmService {
         body: jsonEncode(payload),
       );
 
+      debugPrint('   🌐 [Gemini HTTP] Código de respuesta: ${response.statusCode}');
+
       if (response.statusCode != 200) {
+        debugPrint('   ⚠️ [Gemini HTTP Error]: ${response.body}');
         return UnknownAction(
           rawName: 'http_error_${response.statusCode}',
           rawArguments: {'body': response.body},

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import '../../../core/crypto/crypto.dart';
 import '../../calendar/data/calendar_repository.dart';
@@ -87,6 +88,7 @@ class KevActionDispatcher {
   Future<KevExecutionResult> dispatch(KevAction action) async {
     // 1. Verificación de seguridad E2EE: La bóveda debe estar desbloqueada.
     if (!vault.isUnlocked) {
+      debugPrint('   🔒 [Kev E2EE] Error de seguridad: Bóveda de claves bloqueada.');
       return KevExecutionResult.failure(
         userMessage:
             'La bóveda de seguridad está bloqueada. Desbloquéala con tu contraseña maestra para guardar información cifrada.',
