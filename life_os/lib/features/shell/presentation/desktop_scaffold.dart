@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'navigation_provider.dart';
 import 'widgets/sidebar.dart';
+import '../../ai/presentation/kev_command_bar_dialog.dart';
 import '../../tasks/presentation/tasks_view.dart';
 import '../../notes/presentation/notes_view.dart';
 import '../../calendar/presentation/calendar_view.dart';
@@ -17,78 +19,132 @@ class DesktopScaffold extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final activeSection = ref.watch(activeSectionProvider);
 
-    return Scaffold(
-      backgroundColor: const Color(0xFF0F172A), // Slate 900
-      body: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // 1. Barra Lateral (Sidebar)
-          const Sidebar(),
+    return CallbackShortcuts(
+      bindings: <ShortcutActivator, VoidCallback>{
+        const SingleActivator(LogicalKeyboardKey.keyK, control: true): () {
+          showKevCommandBar(context);
+        },
+      },
+      child: Focus(
+        autofocus: true,
+        child: Scaffold(
+          backgroundColor: const Color(0xFF0F172A), // Slate 900
+          body: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // 1. Barra Lateral (Sidebar)
+              const Sidebar(),
 
-          // 2. Área de Contenido Principal
-          Expanded(
-            child: Column(
-              children: [
-                // Barra Superior (Header Bar)
-                Container(
-                  height: 64,
-                  padding: const EdgeInsets.symmetric(horizontal: 28),
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF1E293B), // Slate 800
-                    border: Border(
-                      bottom: BorderSide(color: Color(0xFF334155), width: 1),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        activeSection.title,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
+              // 2. Área de Contenido Principal
+              Expanded(
+                child: Column(
+                  children: [
+                    // Barra Superior (Header Bar)
+                    Container(
+                      height: 64,
+                      padding: const EdgeInsets.symmetric(horizontal: 28),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF1E293B), // Slate 800
+                        border: Border(
+                          bottom: BorderSide(color: Color(0xFF334155), width: 1),
                         ),
                       ),
-                      Row(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF0F172A),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: const Color(0xFF334155)),
+                          Text(
+                            activeSection.title,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
                             ),
-                            child: const Row(
-                              children: [
-                                Icon(Icons.cloud_done_outlined,
-                                    size: 16, color: Color(0xFF34D399)),
-                                SizedBox(width: 8),
-                                Text(
-                                  'Conectado a Supabase',
-                                  style: TextStyle(
-                                    color: Color(0xFF94A3B8),
-                                    fontSize: 12,
+                          ),
+                          Row(
+                            children: [
+                              // Botón de acceso directo al Asistente Kev (Ctrl + K)
+                              InkWell(
+                                key: const Key('kev_assistant_shortcut_button'),
+                                onTap: () => showKevCommandBar(context),
+                                borderRadius: BorderRadius.circular(8),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF0F172A),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                        color: const Color(0xFF475569)),
+                                  ),
+                                  child: const Row(
+                                    children: [
+                                      Icon(Icons.auto_awesome,
+                                          size: 16, color: Color(0xFF818CF8)),
+                                      SizedBox(width: 8),
+                                      Text(
+                                        'Kev Asistente',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      SizedBox(width: 8),
+                                      Text(
+                                        'Ctrl + K',
+                                        style: TextStyle(
+                                          color: Color(0xFF94A3B8),
+                                          fontSize: 10,
+                                          fontFamily: 'monospace',
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                              ],
-                            ),
+                              ),
+                              const SizedBox(width: 12),
+
+                              // Estado de conexión
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF0F172A),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border:
+                                      Border.all(color: const Color(0xFF334155)),
+                                ),
+                                child: const Row(
+                                  children: [
+                                    Icon(Icons.cloud_done_outlined,
+                                        size: 16, color: Color(0xFF34D399)),
+                                    SizedBox(width: 8),
+                                    Text(
+                                      'Conectado a Supabase',
+                                      style: TextStyle(
+                                        color: Color(0xFF94A3B8),
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
-                    ],
-                  ),
-                ),
+                    ),
 
-                // Vista Activa
-                Expanded(
-                  child: _buildActiveView(activeSection),
+                    // Vista Activa
+                    Expanded(
+                      child: _buildActiveView(activeSection),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
