@@ -1,11 +1,19 @@
 #include <Arduino.h>
 #include "config.h"
+#include "i2s_audio_driver.h"
+#include "audio_recorder.h"
+#include "button_manager.h"
 
 /**
  * =============================================================================
  * Life-OS Pocket Assistant - Firmware Entrypoint
  * =============================================================================
  */
+
+// Instancias de los controladores de hardware
+I2SAudioDriver audioDriver;
+AudioRecorder audioRecorder;
+ButtonManager pttButton(PIN_BUTTON_PTT, BUTTON_DEBOUNCE_MS);
 
 void printWakeupReason() {
     esp_sleep_wakeup_cause_t wakeupReason = esp_sleep_get_wakeup_cause();
@@ -42,33 +50,60 @@ void setup() {
 
     printWakeupReason();
 
-    // Configuración de Pines de Control
-    pinMode(PIN_BUTTON_PTT, INPUT_PULLUP);
+    // Inicializar botón y LED
+    pttButton.begin();
     pinMode(PIN_LED_STATUS, OUTPUT);
     digitalWrite(PIN_LED_STATUS, LOW);
 
-    // Parpadeo de bienvenida en LED de estado
+    // Inicializar driver de micrófono I2S (INMP441)
+    if (!audioDriver.initMicrophone()) {
+        Serial.println(F("[ERROR] No se pudo inicializar el micrófono I2S"));
+    }
+
+    // Inicializar grabador de audio (WAV)
+    if (!audioRecorder.begin(&audioDriver, 2.5f)) {
+        Serial.println(F("[ERROR] No se pudo asignar buffer de grabación WAV"));
+    }
+
+    // Parpadeo de confirmación en LED de estado
     digitalWrite(PIN_LED_STATUS, HIGH);
-    delay(100);
+    delay(150);
     digitalWrite(PIN_LED_STATUS, LOW);
 
-    Serial.println(F("[INIT] Periféricos básicos inicializados correctamente."));
+    Serial.println(F("[READY] Presiona y mantén presionado el botón PTT para grabar voz..."));
 }
 
 void loop() {
-    // Si el botón PTT es presionado (activo en nivel bajo / LOW)
-    if (digitalRead(PIN_BUTTON_PTT) == LOW) {
+    pttButton.update();
+
+    // Evento: Botón acaba de ser presionado (inicio de Push-to-Talk)
+    if (pttButton.wasPressed()) {
         digitalWrite(PIN_LED_STATUS, HIGH);
-        Serial.println(F("[PTT] Botón presionado. Listo para capturar audio."));
-        
-        while (digitalRead(PIN_BUTTON_PTT) == LOW) {
-            delay(10);
-        }
-        
-        Serial.println(F("[PTT] Botón soltado. Procesando comando..."));
-        digitalWrite(PIN_LED_STATUS, LOW);
+        Serial.println(F("[PTT] >> Botón presionado: Iniciando captura de audio..."));
+        audioRecorder.startRecording();
     }
 
-    delay(20);
-}
+    // Mientras el botón permanezca presionado y el grabador esté activo
+    if (pttButton.isPressed() && audioRecorder.isRecording()) {
+        audioRecorder.recordStep();
+    }
 
+    // Evento: Botón acaba de ser soltado (fin de Push-to-Talk)
+    if (pttButton.wasReleased()) {
+        digitalWrite(PIN_LED_STATUS, LOW);
+        Serial.printf("[PTT] << Botón soltado tras %u ms. Finalizando audio...\n", pttButton.getHoldDurationMs());
+        
+        audioRecorder.stopRecording();
+
+        if (audioRecorder.getWavSize() > 44) {
+            Serial.printf("[AUDIO] Buffer WAV generado con éxito: %u bytes (%u ms)\n",
+                          (unsigned int)audioRecorder.getWavSize(),
+                          (unsigned int)audioRecorder.getDurationMs());
+            Serial.println(F("[PIPELINE] Listo para transmitir a STT (Groq Whisper / Google Cloud)"));
+        } else {
+            Serial.println(F("[AUDIO] Grabación descartada por ser demasiado corta"));
+        }
+    }
+
+    delay(2);
+}
