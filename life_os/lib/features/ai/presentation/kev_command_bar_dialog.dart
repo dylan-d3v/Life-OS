@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../data/kev_action_dispatcher.dart';
+import 'ai_providers.dart';
 import 'kev_command_bar_controller.dart';
 
 /// Abre la barra de comandos modal de Kev en el escritorio.
@@ -107,55 +108,105 @@ class _KevCommandBarDialogState extends ConsumerState<KevCommandBarDialog> {
   }
 
   Widget _buildHeader(BuildContext context) {
+    final activeProviderName = ref.watch(activeLlmProviderNameProvider);
+    final isGroq = activeProviderName.contains('Groq');
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(7),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF6366F1), Color(0xFF818CF8)],
+          Expanded(
+            child: Wrap(
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 8,
+              runSpacing: 4,
+              children: [
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(7),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF6366F1), Color(0xFF818CF8)],
+                        ),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(
+                        Icons.auto_awesome,
+                        size: 16,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    const Text(
+                      'Kev AI Assistant',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: isGroq
+                        ? const Color(0x2210B981)
+                        : const Color(0x22F59E0B),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: isGroq
+                          ? const Color(0x6610B981)
+                          : const Color(0x66F59E0B),
+                    ),
                   ),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(
-                  Icons.auto_awesome,
-                  size: 16,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(width: 12),
-              const Text(
-                'Kev AI Assistant',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0F172A),
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: const Color(0xFF475569)),
-                ),
-                child: const Text(
-                  'TypeSafe E2EE',
-                  style: TextStyle(
-                    color: Color(0xFF94A3B8),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        isGroq ? Icons.bolt : Icons.inventory_2_outlined,
+                        size: 12,
+                        color: isGroq
+                            ? const Color(0xFF34D399)
+                            : const Color(0xFFFBBF24),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        activeProviderName,
+                        style: TextStyle(
+                          color: isGroq
+                              ? const Color(0xFF34D399)
+                              : const Color(0xFFFBBF24),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-            ],
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0F172A),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: const Color(0xFF475569)),
+                  ),
+                  child: const Text(
+                    'E2EE',
+                    style: TextStyle(
+                      color: Color(0xFF94A3B8),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
           IconButton(
             tooltip: 'Cerrar [Esc]',

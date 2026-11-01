@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import '../domain/kev_action.dart';
@@ -16,6 +17,9 @@ class GroqLlmService implements KevLlmService {
   static const String _defaultEndpoint =
       'https://api.groq.com/openai/v1/chat/completions';
   static const String _defaultModel = 'llama-3.3-70b-versatile';
+
+  @override
+  String get providerName => 'Groq Cloud (LLaMA 3.3 70B)';
 
   GroqLlmService({
     http.Client? client,
@@ -62,6 +66,9 @@ class GroqLlmService implements KevLlmService {
 
     final now = referenceDateTime ?? DateTime.now();
     final systemPrompt = KevSystemPrompt.buildSystemPrompt(now);
+
+    debugPrint('🤖 [Kev AI] Proveedor: Groq Cloud ($model)');
+    debugPrint('📤 [Kev AI] Enviando prompt: "$cleanInput"');
 
     final payload = {
       'model': model,
@@ -122,7 +129,9 @@ class GroqLlmService implements KevLlmService {
           );
         }
 
-        return KevAction.fromToolCall(functionName, parsedArgs);
+        final action = KevAction.fromToolCall(functionName, parsedArgs);
+        debugPrint('🎯 [Kev AI] Herramienta detectada por LLaMA 3.3: $functionName -> $parsedArgs');
+        return action;
       }
 
       // Si no emitió un tool_call, extraemos el contenido conversacional

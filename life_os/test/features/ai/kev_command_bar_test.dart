@@ -21,6 +21,9 @@ class MockLlmServiceForUi implements KevLlmService {
   });
 
   @override
+  String get providerName => 'Mock UI';
+
+  @override
   Future<KevAction> parseUserIntent(
     String userInput, {
     DateTime? referenceDateTime,
@@ -85,7 +88,7 @@ void main() {
 
     // Verificamos que el diálogo modal se abrió
     expect(find.text('Kev AI Assistant'), findsOneWidget);
-    expect(find.text('TypeSafe E2EE'), findsOneWidget);
+    expect(find.text('E2EE'), findsOneWidget);
     expect(find.byType(TextField), findsOneWidget);
   });
 

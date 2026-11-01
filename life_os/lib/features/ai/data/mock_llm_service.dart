@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import '../../finance/domain/finance_transaction_item.dart';
 import '../domain/kev_action.dart';
 import 'kev_llm_service.dart';
@@ -7,6 +8,9 @@ class MockLlmService implements KevLlmService {
   final List<KevAction> _mockQueue = [];
 
   MockLlmService();
+
+  @override
+  String get providerName => 'Mock Local (Offline)';
 
   /// Encola una acción que será retornada en la siguiente llamada a [parseUserIntent].
   void enqueueResponse(KevAction action) {
@@ -23,9 +27,14 @@ class MockLlmService implements KevLlmService {
     String userInput, {
     DateTime? referenceDateTime,
   }) async {
+    debugPrint('📦 [Kev AI] Proveedor: Mock Local (Heurístico / Offline)');
+    debugPrint('📤 [Kev AI] Analizando: "$userInput"');
+
     // 1. Si hay una respuesta encolada explícitamente, la despachamos
     if (_mockQueue.isNotEmpty) {
-      return _mockQueue.removeAt(0);
+      final queued = _mockQueue.removeAt(0);
+      debugPrint('🎯 [Kev AI] Respuesta encolada despachada: ${queued.actionName}');
+      return queued;
     }
 
     final lower = userInput.trim().toLowerCase();

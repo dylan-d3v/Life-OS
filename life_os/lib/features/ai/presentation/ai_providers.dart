@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/providers/crypto_providers.dart';
@@ -7,6 +8,7 @@ import '../../notes/presentation/notes_provider.dart';
 import '../../projects/presentation/projects_provider.dart';
 import '../../tasks/presentation/tasks_provider.dart';
 import '../data/daily_briefing_service.dart';
+import '../data/gemini_llm_service.dart';
 import '../data/groq_llm_service.dart';
 import '../data/kev_action_dispatcher.dart';
 import '../data/kev_llm_service.dart';
@@ -15,24 +17,50 @@ import '../domain/daily_briefing.dart';
 
 /// Proveedor del servicio de inferencia de Kev.
 ///
-/// Si la clave `GROQ_API_KEY` está configurada en `.env`, inicializa [GroqLlmService]
-/// con conexión a la nube de ultrabaja latencia. De lo contrario, provee [MockLlmService]
-/// como respaldo funcional local.
+/// Prioridad de conexión:
+/// 1. Si `GEMINI_API_KEY` está configurada en `.env`, utiliza Google Gemini API (AI Studio).
+/// 2. Si `GROQ_API_KEY` está configurada en `.env`, utiliza Groq Cloud API (LLaMA 3.3).
+/// 3. De lo contrario, provee [MockLlmService] como respaldo funcional local offline.
 final kevLlmServiceProvider = Provider<KevLlmService>((ref) {
-  String? apiKey;
+  // 1. Google Gemini (Google AI Studio)
+  String? geminiKey;
   try {
-    apiKey = dotenv.env['GROQ_API_KEY'];
+    geminiKey = dotenv.env['GEMINI_API_KEY'];
   } catch (_) {
-    apiKey = null;
+    geminiKey = null;
   }
 
-  if (apiKey != null &&
-      apiKey.isNotEmpty &&
-      apiKey != 'your-groq-api-key-here') {
-    return GroqLlmService(apiKey: apiKey);
+  if (geminiKey != null &&
+      geminiKey.isNotEmpty &&
+      geminiKey != 'your-gemini-api-key-here') {
+    debugPrint('✨ [Kev AI] Conectado a Google Gemini API');
+    return GeminiLlmService(apiKey: geminiKey);
   }
 
+  // 2. Groq Cloud (LLaMA 3.3)
+  String? groqKey;
+  try {
+    groqKey = dotenv.env['GROQ_API_KEY'];
+  } catch (_) {
+    groqKey = null;
+  }
+
+  if (groqKey != null &&
+      groqKey.isNotEmpty &&
+      groqKey != 'your-groq-api-key-here') {
+    debugPrint('🚀 [Kev AI] Conectado a Groq Cloud API (LLaMA 3.3 70B)');
+    return GroqLlmService(apiKey: groqKey);
+  }
+
+  // 3. Mock Local
+  debugPrint('📦 [Kev AI] Sin claves de API configuradas -> Modo Mock Local (Offline)');
   return MockLlmService();
+});
+
+/// Retorna el nombre del motor de inferencia activo para visualización en la UI.
+final activeLlmProviderNameProvider = Provider<String>((ref) {
+  final service = ref.watch(kevLlmServiceProvider);
+  return service.providerName;
 });
 
 /// Proveedor del servicio de síntesis de briefing diario.

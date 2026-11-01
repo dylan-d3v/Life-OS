@@ -4,6 +4,9 @@ import '../domain/kev_action.dart';
 /// Permite desacoplar completamente el motor de decisiones de un proveedor concreto
 /// (Groq, OpenAI, Ollama o Mocks de pruebas).
 abstract class KevLlmService {
+  /// Nombre identificador del proveedor de inferencia activo.
+  String get providerName;
+
   /// Interpreta la entrada en lenguaje natural del usuario y retorna
   /// una acción estrictamente tipada ([KevAction]).
   ///
