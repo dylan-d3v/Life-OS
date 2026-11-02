@@ -163,6 +163,119 @@ void main() {
       expect(action.targetDate, DateTime.parse('2026-11-01T00:00:00Z'));
     });
 
+    test('UpdateTaskAction parsea query, is_completed, priority y due_date', () {
+      final dueDate = DateTime.parse('2026-11-20T18:00:00Z');
+      final args = {
+        'query': 'comprar café tostado',
+        'is_completed': true,
+        'priority': 3,
+        'due_date': dueDate.toIso8601String(),
+        'new_title': 'Comprar café expreso',
+        'notes': 'Comprar 2 bolsas',
+      };
+
+      final action =
+          KevAction.fromToolCall('update_task', args) as UpdateTaskAction;
+
+      expect(action.query, 'comprar café tostado');
+      expect(action.isCompleted, isTrue);
+      expect(action.priority, 3);
+      expect(action.dueDate, dueDate);
+      expect(action.newTitle, 'Comprar café expreso');
+      expect(action.notes, 'Comprar 2 bolsas');
+    });
+
+    test('DeleteTaskAction parsea query de eliminación', () {
+      final args = {'query': 'comprar leche'};
+      final action =
+          KevAction.fromToolCall('delete_task', args) as DeleteTaskAction;
+      expect(action.query, 'comprar leche');
+    });
+
+    test('UpdateNoteAction parsea query, is_pinned y append_content', () {
+      final args = {
+        'query': 'ideas del satélite',
+        'is_pinned': true,
+        'is_archived': false,
+        'new_title': 'Ideas del ESP32 Satélite',
+        'append_content': 'Agregar batería LiPo 3.7V',
+      };
+
+      final action =
+          KevAction.fromToolCall('update_note', args) as UpdateNoteAction;
+
+      expect(action.query, 'ideas del satélite');
+      expect(action.isPinned, isTrue);
+      expect(action.isArchived, isFalse);
+      expect(action.newTitle, 'Ideas del ESP32 Satélite');
+      expect(action.appendContent, 'Agregar batería LiPo 3.7V');
+    });
+
+    test('DeleteNoteAction parsea query de eliminación', () {
+      final args = {'query': 'apuntes viejos'};
+      final action =
+          KevAction.fromToolCall('delete_note', args) as DeleteNoteAction;
+      expect(action.query, 'apuntes viejos');
+    });
+
+    test('UpdateCalendarEventAction parsea query, reprogramación, ubicación y categoría', () {
+      final newStart = DateTime.parse('2026-11-13T10:00:00Z');
+      final newEnd = DateTime.parse('2026-11-13T12:00:00Z');
+      final args = {
+        'query': 'examen de matemáticas',
+        'new_start_time': newStart.toIso8601String(),
+        'new_end_time': newEnd.toIso8601String(),
+        'location': 'Aula Magna',
+        'category': 'Estudios',
+        'is_all_day': false,
+        'new_title': 'Examen Final de Álgebra',
+      };
+
+      final action = KevAction.fromToolCall('update_calendar_event', args)
+          as UpdateCalendarEventAction;
+
+      expect(action.query, 'examen de matemáticas');
+      expect(action.newStartTime, newStart);
+      expect(action.newEndTime, newEnd);
+      expect(action.location, 'Aula Magna');
+      expect(action.category, 'Estudios');
+      expect(action.isAllDay, isFalse);
+      expect(action.newTitle, 'Examen Final de Álgebra');
+    });
+
+    test('DeleteCalendarEventAction parsea query de cancelación', () {
+      final args = {'query': 'reunión con Carlos'};
+      final action = KevAction.fromToolCall('delete_calendar_event', args)
+          as DeleteCalendarEventAction;
+      expect(action.query, 'reunión con Carlos');
+    });
+
+    test('UpdateProjectAction parsea query, nuevo status y color', () {
+      final args = {
+        'query': 'Life-OS',
+        'status': 'paused',
+        'color_hex': '#F59E0B',
+        'description': 'Pausado temporalmente por exámenes',
+        'new_name': 'Life-OS v2',
+      };
+
+      final action =
+          KevAction.fromToolCall('update_project', args) as UpdateProjectAction;
+
+      expect(action.query, 'Life-OS');
+      expect(action.status, ProjectStatus.paused);
+      expect(action.colorHex, '#F59E0B');
+      expect(action.description, 'Pausado temporalmente por exámenes');
+      expect(action.newName, 'Life-OS v2');
+    });
+
+    test('DeleteProjectAction parsea query de eliminación', () {
+      final args = {'query': 'proyecto cancelado'};
+      final action =
+          KevAction.fromToolCall('delete_project', args) as DeleteProjectAction;
+      expect(action.query, 'proyecto cancelado');
+    });
+
     test('Tool no reconocida o argumentos corruptos retornan UnknownAction elegantemente', () {
       final unknownTool =
           KevAction.fromToolCall('hack_nasa', {'target': 'satellite'});
@@ -178,8 +291,8 @@ void main() {
   });
 
   group('KevToolDefinitions Tests', () {
-    test('allTools contiene exactamente 6 definiciones con nombres válidos', () {
-      expect(KevToolDefinitions.allTools.length, 6);
+    test('allTools contiene exactamente 14 definiciones con nombres válidos', () {
+      expect(KevToolDefinitions.allTools.length, 14);
 
       final names = KevToolDefinitions.allTools
           .map((t) => (t['function'] as Map)['name'] as String)
@@ -187,9 +300,17 @@ void main() {
 
       expect(names, containsAll([
         'create_task',
+        'update_task',
+        'delete_task',
         'create_note',
+        'update_note',
+        'delete_note',
         'create_project',
+        'update_project',
+        'delete_project',
         'create_calendar_event',
+        'update_calendar_event',
+        'delete_calendar_event',
         'log_finance',
         'query_summary',
       ]));

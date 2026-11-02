@@ -100,9 +100,17 @@ class KevActionDispatcher {
     try {
       return switch (action) {
         CreateTaskAction a => await _handleCreateTask(a),
+        UpdateTaskAction a => await _handleUpdateTask(a),
+        DeleteTaskAction a => await _handleDeleteTask(a),
         CreateNoteAction a => await _handleCreateNote(a),
+        UpdateNoteAction a => await _handleUpdateNote(a),
+        DeleteNoteAction a => await _handleDeleteNote(a),
         CreateProjectAction a => await _handleCreateProject(a),
+        UpdateProjectAction a => await _handleUpdateProject(a),
+        DeleteProjectAction a => await _handleDeleteProject(a),
         CreateCalendarEventAction a => await _handleCreateCalendarEvent(a),
+        UpdateCalendarEventAction a => await _handleUpdateCalendarEvent(a),
+        DeleteCalendarEventAction a => await _handleDeleteCalendarEvent(a),
         LogFinanceAction a => await _handleLogFinance(a),
         QueryAction a => await _handleQuery(a),
         UnknownAction a => _handleUnknown(a),
@@ -301,6 +309,70 @@ class KevActionDispatcher {
           'No pude determinar la acción a ejecutar. ${action.reason}',
       actionType: action.actionName,
       error: action.reason,
+    );
+  }
+
+  // ===========================================================================
+  // Handlers CRUD temporales (Fase 1 - se completarán con resolver en Fase 3)
+  // ===========================================================================
+
+  Future<KevExecutionResult> _handleUpdateTask(UpdateTaskAction action) async {
+    return KevExecutionResult.failure(
+      userMessage: 'Actualización de tarea en proceso de implementación.',
+      actionType: action.actionName,
+    );
+  }
+
+  Future<KevExecutionResult> _handleDeleteTask(DeleteTaskAction action) async {
+    return KevExecutionResult.failure(
+      userMessage: 'Eliminación de tarea en proceso de implementación.',
+      actionType: action.actionName,
+    );
+  }
+
+  Future<KevExecutionResult> _handleUpdateNote(UpdateNoteAction action) async {
+    return KevExecutionResult.failure(
+      userMessage: 'Actualización de nota en proceso de implementación.',
+      actionType: action.actionName,
+    );
+  }
+
+  Future<KevExecutionResult> _handleDeleteNote(DeleteNoteAction action) async {
+    return KevExecutionResult.failure(
+      userMessage: 'Eliminación de nota en proceso de implementación.',
+      actionType: action.actionName,
+    );
+  }
+
+  Future<KevExecutionResult> _handleUpdateCalendarEvent(
+      UpdateCalendarEventAction action) async {
+    return KevExecutionResult.failure(
+      userMessage: 'Actualización de evento en proceso de implementación.',
+      actionType: action.actionName,
+    );
+  }
+
+  Future<KevExecutionResult> _handleDeleteCalendarEvent(
+      DeleteCalendarEventAction action) async {
+    return KevExecutionResult.failure(
+      userMessage: 'Eliminación de evento en proceso de implementación.',
+      actionType: action.actionName,
+    );
+  }
+
+  Future<KevExecutionResult> _handleUpdateProject(
+      UpdateProjectAction action) async {
+    return KevExecutionResult.failure(
+      userMessage: 'Actualización de proyecto en proceso de implementación.',
+      actionType: action.actionName,
+    );
+  }
+
+  Future<KevExecutionResult> _handleDeleteProject(
+      DeleteProjectAction action) async {
+    return KevExecutionResult.failure(
+      userMessage: 'Eliminación de proyecto en proceso de implementación.',
+      actionType: action.actionName,
     );
   }
 }

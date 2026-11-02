@@ -19,12 +19,28 @@ sealed class KevAction {
       switch (name) {
         case 'create_task':
           return CreateTaskAction.fromMap(arguments);
+        case 'update_task':
+          return UpdateTaskAction.fromMap(arguments);
+        case 'delete_task':
+          return DeleteTaskAction.fromMap(arguments);
         case 'create_note':
           return CreateNoteAction.fromMap(arguments);
+        case 'update_note':
+          return UpdateNoteAction.fromMap(arguments);
+        case 'delete_note':
+          return DeleteNoteAction.fromMap(arguments);
         case 'create_project':
           return CreateProjectAction.fromMap(arguments);
+        case 'update_project':
+          return UpdateProjectAction.fromMap(arguments);
+        case 'delete_project':
+          return DeleteProjectAction.fromMap(arguments);
         case 'create_calendar_event':
           return CreateCalendarEventAction.fromMap(arguments);
+        case 'update_calendar_event':
+          return UpdateCalendarEventAction.fromMap(arguments);
+        case 'delete_calendar_event':
+          return DeleteCalendarEventAction.fromMap(arguments);
         case 'log_finance':
           return LogFinanceAction.fromMap(arguments);
         case 'query_summary':
@@ -464,5 +480,380 @@ class UnknownAction extends KevAction {
         'reason': reason,
       },
     };
+  }
+}
+
+// =============================================================================
+// 8. Acciones de Modificación y Eliminación (CRUD)
+// =============================================================================
+
+class UpdateTaskAction extends KevAction {
+  final String query;
+  final bool? isCompleted;
+  final int? priority;
+  final DateTime? dueDate;
+  final String? newTitle;
+  final String? notes;
+
+  const UpdateTaskAction({
+    required this.query,
+    this.isCompleted,
+    this.priority,
+    this.dueDate,
+    this.newTitle,
+    this.notes,
+  });
+
+  @override
+  String get actionName => 'update_task';
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {
+      'action': actionName,
+      'parameters': {
+        'query': query,
+        if (isCompleted != null) 'is_completed': isCompleted,
+        if (priority != null) 'priority': priority,
+        if (dueDate != null) 'due_date': dueDate!.toIso8601String(),
+        if (newTitle != null) 'new_title': newTitle,
+        if (notes != null) 'notes': notes,
+      },
+    };
+  }
+
+  factory UpdateTaskAction.fromMap(Map<String, dynamic> map) {
+    final query = map['query']?.toString().trim() ?? '';
+    if (query.isEmpty) {
+      throw const FormatException(
+          'El término de búsqueda (query) de la tarea es requerido.');
+    }
+
+    bool? isCompleted;
+    if (map.containsKey('is_completed') && map['is_completed'] != null) {
+      isCompleted = map['is_completed'] == true ||
+          map['is_completed'].toString().toLowerCase() == 'true';
+    }
+
+    int? priority;
+    if (map['priority'] != null) {
+      final rawP = map['priority'];
+      if (rawP is num) {
+        priority = rawP.toInt().clamp(1, 4);
+      } else if (rawP is String) {
+        priority = int.tryParse(rawP)?.clamp(1, 4);
+      }
+    }
+
+    DateTime? dueDate;
+    final rawDue = map['due_date']?.toString();
+    if (rawDue != null && rawDue.isNotEmpty) {
+      dueDate = DateTime.tryParse(rawDue);
+    }
+
+    return UpdateTaskAction(
+      query: query,
+      isCompleted: isCompleted,
+      priority: priority,
+      dueDate: dueDate,
+      newTitle: map['new_title']?.toString().trim(),
+      notes: map['notes']?.toString().trim(),
+    );
+  }
+}
+
+class DeleteTaskAction extends KevAction {
+  final String query;
+
+  const DeleteTaskAction({required this.query});
+
+  @override
+  String get actionName => 'delete_task';
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {
+      'action': actionName,
+      'parameters': {'query': query},
+    };
+  }
+
+  factory DeleteTaskAction.fromMap(Map<String, dynamic> map) {
+    final query = map['query']?.toString().trim() ?? '';
+    if (query.isEmpty) {
+      throw const FormatException(
+          'El término de búsqueda de la tarea a eliminar es requerido.');
+    }
+    return DeleteTaskAction(query: query);
+  }
+}
+
+class UpdateNoteAction extends KevAction {
+  final String query;
+  final bool? isPinned;
+  final bool? isArchived;
+  final String? newTitle;
+  final String? appendContent;
+
+  const UpdateNoteAction({
+    required this.query,
+    this.isPinned,
+    this.isArchived,
+    this.newTitle,
+    this.appendContent,
+  });
+
+  @override
+  String get actionName => 'update_note';
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {
+      'action': actionName,
+      'parameters': {
+        'query': query,
+        if (isPinned != null) 'is_pinned': isPinned,
+        if (isArchived != null) 'is_archived': isArchived,
+        if (newTitle != null) 'new_title': newTitle,
+        if (appendContent != null) 'append_content': appendContent,
+      },
+    };
+  }
+
+  factory UpdateNoteAction.fromMap(Map<String, dynamic> map) {
+    final query = map['query']?.toString().trim() ?? '';
+    if (query.isEmpty) {
+      throw const FormatException(
+          'El término de búsqueda de la nota es requerido.');
+    }
+
+    bool? isPinned;
+    if (map.containsKey('is_pinned') && map['is_pinned'] != null) {
+      isPinned = map['is_pinned'] == true ||
+          map['is_pinned'].toString().toLowerCase() == 'true';
+    }
+
+    bool? isArchived;
+    if (map.containsKey('is_archived') && map['is_archived'] != null) {
+      isArchived = map['is_archived'] == true ||
+          map['is_archived'].toString().toLowerCase() == 'true';
+    }
+
+    return UpdateNoteAction(
+      query: query,
+      isPinned: isPinned,
+      isArchived: isArchived,
+      newTitle: map['new_title']?.toString().trim(),
+      appendContent: map['append_content']?.toString().trim(),
+    );
+  }
+}
+
+class DeleteNoteAction extends KevAction {
+  final String query;
+
+  const DeleteNoteAction({required this.query});
+
+  @override
+  String get actionName => 'delete_note';
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {
+      'action': actionName,
+      'parameters': {'query': query},
+    };
+  }
+
+  factory DeleteNoteAction.fromMap(Map<String, dynamic> map) {
+    final query = map['query']?.toString().trim() ?? '';
+    if (query.isEmpty) {
+      throw const FormatException(
+          'El término de búsqueda de la nota a eliminar es requerido.');
+    }
+    return DeleteNoteAction(query: query);
+  }
+}
+
+class UpdateCalendarEventAction extends KevAction {
+  final String query;
+  final DateTime? newStartTime;
+  final DateTime? newEndTime;
+  final String? location;
+  final String? category;
+  final bool? isAllDay;
+  final String? newTitle;
+
+  const UpdateCalendarEventAction({
+    required this.query,
+    this.newStartTime,
+    this.newEndTime,
+    this.location,
+    this.category,
+    this.isAllDay,
+    this.newTitle,
+  });
+
+  @override
+  String get actionName => 'update_calendar_event';
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {
+      'action': actionName,
+      'parameters': {
+        'query': query,
+        if (newStartTime != null)
+          'new_start_time': newStartTime!.toIso8601String(),
+        if (newEndTime != null) 'new_end_time': newEndTime!.toIso8601String(),
+        if (location != null) 'location': location,
+        if (category != null) 'category': category,
+        if (isAllDay != null) 'is_all_day': isAllDay,
+        if (newTitle != null) 'new_title': newTitle,
+      },
+    };
+  }
+
+  factory UpdateCalendarEventAction.fromMap(Map<String, dynamic> map) {
+    final query = map['query']?.toString().trim() ?? '';
+    if (query.isEmpty) {
+      throw const FormatException(
+          'El término de búsqueda del evento es requerido.');
+    }
+
+    DateTime? newStart;
+    final rawStart = map['new_start_time']?.toString();
+    if (rawStart != null && rawStart.isNotEmpty) {
+      newStart = DateTime.tryParse(rawStart);
+    }
+
+    DateTime? newEnd;
+    final rawEnd = map['new_end_time']?.toString();
+    if (rawEnd != null && rawEnd.isNotEmpty) {
+      newEnd = DateTime.tryParse(rawEnd);
+    }
+
+    bool? isAllDay;
+    if (map.containsKey('is_all_day') && map['is_all_day'] != null) {
+      isAllDay = map['is_all_day'] == true ||
+          map['is_all_day'].toString().toLowerCase() == 'true';
+    }
+
+    return UpdateCalendarEventAction(
+      query: query,
+      newStartTime: newStart,
+      newEndTime: newEnd,
+      location: map['location']?.toString().trim(),
+      category: map['category']?.toString().trim(),
+      isAllDay: isAllDay,
+      newTitle: map['new_title']?.toString().trim(),
+    );
+  }
+}
+
+class DeleteCalendarEventAction extends KevAction {
+  final String query;
+
+  const DeleteCalendarEventAction({required this.query});
+
+  @override
+  String get actionName => 'delete_calendar_event';
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {
+      'action': actionName,
+      'parameters': {'query': query},
+    };
+  }
+
+  factory DeleteCalendarEventAction.fromMap(Map<String, dynamic> map) {
+    final query = map['query']?.toString().trim() ?? '';
+    if (query.isEmpty) {
+      throw const FormatException(
+          'El término de búsqueda del evento a eliminar es requerido.');
+    }
+    return DeleteCalendarEventAction(query: query);
+  }
+}
+
+class UpdateProjectAction extends KevAction {
+  final String query;
+  final ProjectStatus? status;
+  final String? colorHex;
+  final String? description;
+  final String? newName;
+
+  const UpdateProjectAction({
+    required this.query,
+    this.status,
+    this.colorHex,
+    this.description,
+    this.newName,
+  });
+
+  @override
+  String get actionName => 'update_project';
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {
+      'action': actionName,
+      'parameters': {
+        'query': query,
+        if (status != null) 'status': status!.value,
+        if (colorHex != null) 'color_hex': colorHex,
+        if (description != null) 'description': description,
+        if (newName != null) 'new_name': newName,
+      },
+    };
+  }
+
+  factory UpdateProjectAction.fromMap(Map<String, dynamic> map) {
+    final query = map['query']?.toString().trim() ?? '';
+    if (query.isEmpty) {
+      throw const FormatException(
+          'El nombre del proyecto a modificar es requerido.');
+    }
+
+    ProjectStatus? status;
+    final rawStatus = map['status']?.toString();
+    if (rawStatus != null && rawStatus.isNotEmpty) {
+      status = ProjectStatus.fromString(rawStatus);
+    }
+
+    return UpdateProjectAction(
+      query: query,
+      status: status,
+      colorHex: map['color_hex']?.toString().trim(),
+      description: map['description']?.toString().trim(),
+      newName: map['new_name']?.toString().trim(),
+    );
+  }
+}
+
+class DeleteProjectAction extends KevAction {
+  final String query;
+
+  const DeleteProjectAction({required this.query});
+
+  @override
+  String get actionName => 'delete_project';
+
+  @override
+  Map<String, dynamic> toJson() {
+    return {
+      'action': actionName,
+      'parameters': {'query': query},
+    };
+  }
+
+  factory DeleteProjectAction.fromMap(Map<String, dynamic> map) {
+    final query = map['query']?.toString().trim() ?? '';
+    if (query.isEmpty) {
+      throw const FormatException(
+          'El nombre del proyecto a eliminar es requerido.');
+    }
+    return DeleteProjectAction(query: query);
   }
 }
