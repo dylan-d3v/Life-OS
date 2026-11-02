@@ -24,6 +24,7 @@ class CalendarRepository {
     bool isAllDay = false,
     String description = '',
     String location = '',
+    String category = 'Personal',
   }) async {
     final supabase = _requireClient();
     final userId = _requireUserId();
@@ -32,11 +33,14 @@ class CalendarRepository {
       throw ArgumentError('La hora de fin no puede ser anterior a la hora de inicio.');
     }
 
-    final sensitiveData = {
+    final sensitiveData = <String, dynamic>{
       'title': title,
       'description': description,
       'location': location,
     };
+    if (category.isNotEmpty && category != 'Personal') {
+      sensitiveData['category'] = category;
+    }
 
     final payload = await encryptionService.encryptJson(
       sensitiveData,

@@ -1,6 +1,6 @@
 /// Modelo de dominio que representa un Evento de Calendario en Life-OS.
 ///
-/// La información confidencial ([title], [description], [location]) se cifra con
+/// La información confidencial ([title], [description], [location], [category]) se cifra con
 /// AES-256-GCM antes de enviarse a Supabase. Los tiempos ([startTime], [endTime],
 /// [isAllDay]) se almacenan en claro para permitir filtros temporales y orden cronológico.
 class CalendarEventItem {
@@ -11,6 +11,7 @@ class CalendarEventItem {
   final String title;
   final String description;
   final String location;
+  final String category;
   final DateTime createdAt;
   final DateTime updatedAt;
   final DateTime? deletedAt;
@@ -23,6 +24,7 @@ class CalendarEventItem {
     required this.title,
     this.description = '',
     this.location = '',
+    this.category = 'Personal',
     required this.createdAt,
     required this.updatedAt,
     this.deletedAt,
@@ -36,6 +38,7 @@ class CalendarEventItem {
     String? title,
     String? description,
     String? location,
+    String? category,
     DateTime? createdAt,
     DateTime? updatedAt,
     DateTime? deletedAt,
@@ -48,6 +51,7 @@ class CalendarEventItem {
       title: title ?? this.title,
       description: description ?? this.description,
       location: location ?? this.location,
+      category: category ?? this.category,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       deletedAt: deletedAt ?? this.deletedAt,
@@ -56,11 +60,15 @@ class CalendarEventItem {
 
   /// Retorna un mapa con los campos sensibles que deben cifrarse con AES-256-GCM.
   Map<String, dynamic> toEncryptedFieldsMap() {
-    return {
+    final map = <String, dynamic>{
       'title': title,
       'description': description,
       'location': location,
     };
+    if (category.isNotEmpty && category != 'Personal') {
+      map['category'] = category;
+    }
+    return map;
   }
 
   /// Reconstruye un [CalendarEventItem] combinando los metadatos temporales de Supabase
@@ -77,6 +85,7 @@ class CalendarEventItem {
       title: decryptedFields['title'] as String? ?? '',
       description: decryptedFields['description'] as String? ?? '',
       location: decryptedFields['location'] as String? ?? '',
+      category: decryptedFields['category'] as String? ?? 'Personal',
       createdAt: DateTime.parse(row['created_at'] as String),
       updatedAt: DateTime.parse(row['updated_at'] as String),
       deletedAt: row['deleted_at'] != null
@@ -85,4 +94,3 @@ class CalendarEventItem {
     );
   }
 }
-

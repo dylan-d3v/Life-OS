@@ -3,6 +3,7 @@ import '../../../core/providers/crypto_providers.dart';
 import '../../../core/providers/supabase_providers.dart';
 import '../data/calendar_repository.dart';
 import '../domain/calendar_event_item.dart';
+import 'calendar_theme.dart';
 
 // =============================================================================
 // Repositorio de Calendario
@@ -17,10 +18,12 @@ final calendarRepositoryProvider = Provider<CalendarRepository>((ref) {
 });
 
 // =============================================================================
-// Filtro de Vista
+// Modos de Vista y Filtros
 // =============================================================================
 
 enum CalendarFilter { upcoming, all, past }
+
+enum CalendarViewMode { month, week, day }
 
 class CalendarFilterNotifier extends Notifier<CalendarFilter> {
   @override
@@ -36,8 +39,117 @@ final calendarFilterProvider =
   CalendarFilterNotifier.new,
 );
 
+class CalendarViewModeNotifier extends Notifier<CalendarViewMode> {
+  @override
+  CalendarViewMode build() => CalendarViewMode.month;
+
+  void setMode(CalendarViewMode mode) {
+    state = mode;
+  }
+}
+
+final calendarViewModeProvider =
+    NotifierProvider<CalendarViewModeNotifier, CalendarViewMode>(
+  CalendarViewModeNotifier.new,
+);
+
 // =============================================================================
-// Lista de Eventos
+// Fechas Activas y Seleccionadas
+// =============================================================================
+
+class CalendarSelectedDateNotifier extends Notifier<DateTime> {
+  @override
+  DateTime build() {
+    final now = DateTime.now();
+    return DateTime(now.year, now.month, now.day);
+  }
+
+  void selectDate(DateTime date) {
+    state = DateTime(date.year, date.month, date.day);
+  }
+}
+
+final calendarSelectedDateProvider =
+    NotifierProvider<CalendarSelectedDateNotifier, DateTime>(
+  CalendarSelectedDateNotifier.new,
+);
+
+class CalendarActiveMonthNotifier extends Notifier<DateTime> {
+  @override
+  DateTime build() {
+    final now = DateTime.now();
+    return DateTime(now.year, now.month, 1);
+  }
+
+  void setMonth(DateTime month) {
+    state = DateTime(month.year, month.month, 1);
+  }
+
+  void nextMonth() {
+    state = DateTime(state.year, state.month + 1, 1);
+  }
+
+  void previousMonth() {
+    state = DateTime(state.year, state.month - 1, 1);
+  }
+
+  void goToToday() {
+    final now = DateTime.now();
+    state = DateTime(now.year, now.month, 1);
+  }
+}
+
+final calendarActiveMonthProvider =
+    NotifierProvider<CalendarActiveMonthNotifier, DateTime>(
+  CalendarActiveMonthNotifier.new,
+);
+
+// =============================================================================
+// Filtros de Categorías y Búsqueda
+// =============================================================================
+
+class CalendarCategoryFilterNotifier extends Notifier<Set<String>> {
+  @override
+  Set<String> build() => Set<String>.from(CalendarTheme.allCategories);
+
+  void toggleCategory(String category) {
+    final updated = Set<String>.from(state);
+    if (updated.contains(category)) {
+      if (updated.length > 1) {
+        updated.remove(category);
+      }
+    } else {
+      updated.add(category);
+    }
+    state = updated;
+  }
+
+  void selectAll() {
+    state = Set<String>.from(CalendarTheme.allCategories);
+  }
+}
+
+final calendarCategoryFilterProvider =
+    NotifierProvider<CalendarCategoryFilterNotifier, Set<String>>(
+  CalendarCategoryFilterNotifier.new,
+);
+
+class CalendarSearchQueryNotifier extends Notifier<String> {
+  @override
+  String build() => '';
+
+  void setSearch(String query) {
+    state = query;
+  }
+}
+
+final calendarSearchQueryProvider =
+    NotifierProvider<CalendarSearchQueryNotifier, String>(
+  CalendarSearchQueryNotifier.new,
+);
+
+// =============================================================================
+// Lista de Eventos y Repositorio
 // =============================================================================
 
 class CalendarEventListNotifier
@@ -62,6 +174,7 @@ class CalendarEventListNotifier
     bool isAllDay = false,
     String description = '',
     String location = '',
+    String category = 'Personal',
   }) async {
     final repo = ref.read(calendarRepositoryProvider);
     final newEvent = await repo.createEvent(
@@ -71,6 +184,7 @@ class CalendarEventListNotifier
       isAllDay: isAllDay,
       description: description,
       location: location,
+      category: category,
     );
 
     state = state.whenData((events) {
@@ -108,7 +222,12 @@ final calendarEventListProvider = AsyncNotifierProvider<
   CalendarEventListNotifier.new,
 );
 
+// =============================================================================
+// Proveedores de Filtrado Combinado
+// =============================================================================
+
 /// Proveedor filtrado según la opción seleccionada (Próximos, Todos, Pasados).
+/// Mantiene total compatibilidad con las pruebas unitarias existentes.
 final filteredCalendarEventsProvider =
     Provider<AsyncValue<List<CalendarEventItem>>>((ref) {
   final filter = ref.watch(calendarFilterProvider);
@@ -131,3 +250,33 @@ final filteredCalendarEventsProvider =
   });
 });
 
+/// Proveedor principal del Workspace con filtrado por categoría y búsqueda textual.
+final calendarWorkspaceEventsProvider =
+    Provider<AsyncValue<List<CalendarEventItem>>>((ref) {
+  final baseEventsAsync = ref.watch(filteredCalendarEventsProvider);
+  final selectedCategories = ref.watch(calendarCategoryFilterProvider);
+  final searchQuery = ref.watch(calendarSearchQueryProvider).trim().toLowerCase();
+
+  return baseEventsAsync.whenData((events) {
+    return events.where((event) {
+      // Filtro de categorías
+      final matchesCategory = selectedCategories.isEmpty ||
+          selectedCategories.contains(event.category) ||
+          (event.category.isEmpty && selectedCategories.contains('Personal'));
+
+      if (!matchesCategory) return false;
+
+      // Filtro de búsqueda
+      if (searchQuery.isNotEmpty) {
+        final title = event.title.toLowerCase();
+        final desc = event.description.toLowerCase();
+        final loc = event.location.toLowerCase();
+        return title.contains(searchQuery) ||
+            desc.contains(searchQuery) ||
+            loc.contains(searchQuery);
+      }
+
+      return true;
+    }).toList();
+  });
+});

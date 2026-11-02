@@ -96,22 +96,22 @@ void main() {
     await tester.pumpAndSettle();
 
     // Filtro por defecto: "Próximos" (solo el evento futuro visible)
-    expect(find.text('Presentación de Proyecto Life-OS'), findsOneWidget);
+    expect(find.text('Presentación de Proyecto Life-OS'), findsAtLeastNWidgets(1));
     expect(find.text('Reunión de Retrospectiva Pasada'), findsNothing);
 
     // Cambiar a "Todos"
     await tester.tap(find.text('Todos'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Presentación de Proyecto Life-OS'), findsOneWidget);
-    expect(find.text('Reunión de Retrospectiva Pasada'), findsOneWidget);
+    expect(find.text('Presentación de Proyecto Life-OS'), findsAtLeastNWidgets(1));
+    expect(find.text('Reunión de Retrospectiva Pasada'), findsAtLeastNWidgets(1));
 
     // Cambiar a "Pasados"
     await tester.tap(find.text('Pasados'));
     await tester.pumpAndSettle();
 
     expect(find.text('Presentación de Proyecto Life-OS'), findsNothing);
-    expect(find.text('Reunión de Retrospectiva Pasada'), findsOneWidget);
+    expect(find.text('Reunión de Retrospectiva Pasada'), findsAtLeastNWidgets(1));
   });
 
   testWidgets('CalendarView abre diálogo modal al pulsar "Nuevo Evento"',

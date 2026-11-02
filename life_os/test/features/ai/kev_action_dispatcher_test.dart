@@ -161,12 +161,14 @@ class FakeCalendarRepository extends CalendarRepository {
     bool isAllDay = false,
     String description = '',
     String location = '',
+    String category = 'Personal',
   }) async {
     final event = CalendarEventItem(
       id: 'event-fake-id',
       title: title,
       description: description,
       location: location,
+      category: category,
       startTime: startTime,
       endTime: endTime,
       isAllDay: isAllDay,
