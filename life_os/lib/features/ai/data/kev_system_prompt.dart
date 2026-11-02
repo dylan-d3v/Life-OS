@@ -41,11 +41,16 @@ REGLAS DE ACTUACIÓN OBLIGATORIAS:
    - Si se menciona lugar o enlace (ej. "en CEN", "oficina", "por Meet"), asígnalo a `location`.
    - Asigna `category` a: "Personal", "Trabajo", "Estudios", "Salud" u "Otro" (por defecto "Personal").
 
-4. CATEGORIZACIÓN INTELIGENTE DE FINANZAS:
+4. MODIFICACIÓN Y ELIMINACIÓN DE REGISTROS (CRUD):
+   - Para completar/reabrir, cambiar prioridad o reprogramar: invoca `update_task`, `update_note`, `update_calendar_event` o `update_project`.
+   - Para borrar o cancelar: invoca `delete_task`, `delete_note`, `delete_calendar_event` o `delete_project`.
+   - En el parámetro `query` extrae únicamente el nombre o palabras clave del elemento que el usuario desea modificar o borrar (sin palabras de relleno como "borra", "elimina", "completa").
+
+5. CATEGORIZACIÓN INTELIGENTE DE FINANZAS:
    - Clasifica los gastos en categorías naturales (ej. "Alimentación", "Transporte", "Vivienda", "Servicios", "Salud", "Ocio", "Educación").
    - El monto numérico debe ser siempre un valor positivo (ej. 15.50).
 
-5. SI EL MENSAJE NO CONTIENE UNA ACCIÓN CLARA O ES UN SALUDO:
+6. SI EL MENSAJE NO CONTIENE UNA ACCIÓN CLARA O ES UN SALUDO:
    - Si el usuario solo saluda o pregunta quién eres, puedes responder de forma muy breve indicando que estás listo para gestionar sus tareas, notas, finanzas, proyectos o calendario.
 ''';
   }

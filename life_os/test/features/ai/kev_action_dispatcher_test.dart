@@ -21,6 +21,8 @@ import 'package:life_os/features/tasks/domain/task_item.dart';
 
 class FakeTaskRepository extends TaskRepository {
   TaskItem? lastCreatedTask;
+  TaskItem? lastUpdatedTask;
+  String? lastDeletedTaskId;
   String? lastEncryptedData;
   final List<TaskItem> mockTasks;
   bool shouldThrow = false;
@@ -68,15 +70,29 @@ class FakeTaskRepository extends TaskRepository {
 
   @override
   Future<List<TaskItem>> fetchTasks() async => mockTasks;
+
+  @override
+  Future<void> updateTask(TaskItem task) async {
+    lastUpdatedTask = task;
+  }
+
+  @override
+  Future<void> softDeleteTask(String taskId) async {
+    lastDeletedTaskId = taskId;
+  }
 }
 
 class FakeNoteRepository extends NoteRepository {
   NoteItem? lastCreatedNote;
+  NoteItem? lastUpdatedNote;
+  String? lastDeletedNoteId;
   String? lastEncryptedData;
+  final List<NoteItem> mockNotes;
 
   FakeNoteRepository({
     required super.encryptionService,
     required super.vault,
+    this.mockNotes = const [],
   });
 
   @override
@@ -107,10 +123,25 @@ class FakeNoteRepository extends NoteRepository {
     lastCreatedNote = note;
     return note;
   }
+
+  @override
+  Future<List<NoteItem>> fetchNotes() async => mockNotes;
+
+  @override
+  Future<void> updateNote(NoteItem note) async {
+    lastUpdatedNote = note;
+  }
+
+  @override
+  Future<void> softDeleteNote(String noteId) async {
+    lastDeletedNoteId = noteId;
+  }
 }
 
 class FakeProjectRepository extends ProjectRepository {
   ProjectItem? lastCreatedProject;
+  ProjectItem? lastUpdatedProject;
+  String? lastDeletedProjectId;
   final List<ProjectItem> mockProjects;
 
   FakeProjectRepository({
@@ -141,10 +172,22 @@ class FakeProjectRepository extends ProjectRepository {
 
   @override
   Future<List<ProjectItem>> fetchProjects() async => mockProjects;
+
+  @override
+  Future<void> updateProject(ProjectItem project) async {
+    lastUpdatedProject = project;
+  }
+
+  @override
+  Future<void> softDeleteProject(String projectId) async {
+    lastDeletedProjectId = projectId;
+  }
 }
 
 class FakeCalendarRepository extends CalendarRepository {
   CalendarEventItem? lastCreatedEvent;
+  CalendarEventItem? lastUpdatedEvent;
+  String? lastDeletedEventId;
   final List<CalendarEventItem> mockEvents;
 
   FakeCalendarRepository({
@@ -181,6 +224,16 @@ class FakeCalendarRepository extends CalendarRepository {
 
   @override
   Future<List<CalendarEventItem>> fetchEvents() async => mockEvents;
+
+  @override
+  Future<void> updateEvent(CalendarEventItem event) async {
+    lastUpdatedEvent = event;
+  }
+
+  @override
+  Future<void> softDeleteEvent(String eventId) async {
+    lastDeletedEventId = eventId;
+  }
 }
 
 class FakeFinanceRepository extends FinanceRepository {
@@ -547,6 +600,356 @@ void main() {
       expect(result.actionType, 'create_task');
       expect(result.error, contains('Error simulado en base de datos'));
       expect(result.userMessage, contains('Ocurrió un error al ejecutar la acción'));
+    });
+
+    // =========================================================================
+    // Pruebas CRUD con Motor de Resolución Semántica Local (Fase 3)
+    // =========================================================================
+
+    group('Acciones CRUD sobre Tareas', () {
+      setUp(() {
+        taskRepo = FakeTaskRepository(
+          encryptionService: encryptionService,
+          vault: vault,
+          mockTasks: [
+            TaskItem(
+              id: 'task-1',
+              title: 'Comprar pan en la panadería',
+              notes: 'De trigo integral',
+              status: TaskStatus.todo,
+              priority: 2,
+              createdAt: DateTime.now(),
+              updatedAt: DateTime.now(),
+            ),
+            TaskItem(
+              id: 'task-2',
+              title: 'Estudiar para examen de Matemáticas',
+              notes: 'Capítulo 4 y 5',
+              status: TaskStatus.done,
+              priority: 1,
+              createdAt: DateTime.now(),
+              updatedAt: DateTime.now(),
+            ),
+          ],
+        );
+
+        dispatcher = KevActionDispatcher(
+          taskRepository: taskRepo,
+          noteRepository: noteRepo,
+          projectRepository: projectRepo,
+          calendarRepository: calendarRepo,
+          financeRepository: financeRepo,
+          vault: vault,
+        );
+      });
+
+      test('completa una tarea existente usando búsqueda difusa', () async {
+        const action = UpdateTaskAction(
+          query: 'comprar pan',
+          isCompleted: true,
+        );
+
+        final result = await dispatcher.dispatch(action);
+
+        expect(result.success, isTrue);
+        expect(result.actionType, 'update_task');
+        expect(result.entityId, 'task-1');
+        expect(result.userMessage, contains('marcada como completada'));
+        expect(taskRepo.lastUpdatedTask?.status, TaskStatus.done);
+      });
+
+      test('reabre una tarea y actualiza su prioridad', () async {
+        const action = UpdateTaskAction(
+          query: 'examen matematicas',
+          isCompleted: false,
+          priority: 3,
+        );
+
+        final result = await dispatcher.dispatch(action);
+
+        expect(result.success, isTrue);
+        expect(result.entityId, 'task-2');
+        expect(result.userMessage, contains('reabierta'));
+        expect(taskRepo.lastUpdatedTask?.status, TaskStatus.todo);
+        expect(taskRepo.lastUpdatedTask?.priority, 3);
+      });
+
+      test('falla amigablemente al intentar actualizar tarea inexistente', () async {
+        const action = UpdateTaskAction(
+          query: 'arreglar el cohete interespacial',
+          isCompleted: true,
+        );
+
+        final result = await dispatcher.dispatch(action);
+
+        expect(result.success, isFalse);
+        expect(result.userMessage, contains('No encontré ninguna tarea'));
+      });
+
+      test('elimina una tarea existente (soft delete)', () async {
+        const action = DeleteTaskAction(query: 'comprar pan');
+
+        final result = await dispatcher.dispatch(action);
+
+        expect(result.success, isTrue);
+        expect(result.actionType, 'delete_task');
+        expect(result.entityId, 'task-1');
+        expect(result.userMessage, contains('eliminada'));
+        expect(taskRepo.lastDeletedTaskId, 'task-1');
+      });
+
+      test('falla amigablemente al eliminar tarea que no existe', () async {
+        const action = DeleteTaskAction(query: 'inexistente');
+
+        final result = await dispatcher.dispatch(action);
+
+        expect(result.success, isFalse);
+        expect(result.userMessage, contains('No encontré ninguna tarea'));
+      });
+    });
+
+    group('Acciones CRUD sobre Notas', () {
+      setUp(() {
+        noteRepo = FakeNoteRepository(
+          encryptionService: encryptionService,
+          vault: vault,
+          mockNotes: [
+            NoteItem(
+              id: 'note-1',
+              title: 'Ideas para el proyecto',
+              content: 'Punto 1: Crear MVP',
+              isPinned: false,
+              tags: const ['ideas'],
+              createdAt: DateTime.now(),
+              updatedAt: DateTime.now(),
+            ),
+          ],
+        );
+
+        dispatcher = KevActionDispatcher(
+          taskRepository: taskRepo,
+          noteRepository: noteRepo,
+          projectRepository: projectRepo,
+          calendarRepository: calendarRepo,
+          financeRepository: financeRepo,
+          vault: vault,
+        );
+      });
+
+      test('fija una nota existente al inicio', () async {
+        const action = UpdateNoteAction(
+          query: 'ideas proyecto',
+          isPinned: true,
+        );
+
+        final result = await dispatcher.dispatch(action);
+
+        expect(result.success, isTrue);
+        expect(result.entityId, 'note-1');
+        expect(result.userMessage, contains('fijada al inicio'));
+        expect(noteRepo.lastUpdatedNote?.isPinned, isTrue);
+      });
+
+      test('agrega contenido (append) a una nota existente', () async {
+        const action = UpdateNoteAction(
+          query: 'ideas proyecto',
+          appendContent: 'Punto 2: Lanzar en producción',
+        );
+
+        final result = await dispatcher.dispatch(action);
+
+        expect(result.success, isTrue);
+        expect(result.userMessage, contains('Contenido agregado'));
+        expect(noteRepo.lastUpdatedNote?.content,
+            'Punto 1: Crear MVP\nPunto 2: Lanzar en producción');
+      });
+
+      test('archiva una nota existente', () async {
+        const action = UpdateNoteAction(
+          query: 'ideas proyecto',
+          isArchived: true,
+        );
+
+        final result = await dispatcher.dispatch(action);
+
+        expect(result.success, isTrue);
+        expect(result.userMessage, contains('archivada'));
+        expect(noteRepo.lastDeletedNoteId, 'note-1');
+      });
+
+      test('elimina una nota existente', () async {
+        const action = DeleteNoteAction(query: 'ideas proyecto');
+
+        final result = await dispatcher.dispatch(action);
+
+        expect(result.success, isTrue);
+        expect(result.userMessage, contains('eliminada'));
+        expect(noteRepo.lastDeletedNoteId, 'note-1');
+      });
+
+      test('falla amigablemente si la nota no existe', () async {
+        const action = DeleteNoteAction(query: 'nota fantasma');
+
+        final result = await dispatcher.dispatch(action);
+
+        expect(result.success, isFalse);
+        expect(result.userMessage, contains('No encontré ninguna nota'));
+      });
+    });
+
+    group('Acciones CRUD sobre Calendario', () {
+      setUp(() {
+        calendarRepo = FakeCalendarRepository(
+          encryptionService: encryptionService,
+          vault: vault,
+          mockEvents: [
+            CalendarEventItem(
+              id: 'event-1',
+              title: 'Examen de Matemáticas',
+              startTime: DateTime(2026, 11, 12, 10, 0),
+              endTime: DateTime(2026, 11, 12, 12, 0),
+              location: 'CEN',
+              category: 'Estudios',
+              createdAt: DateTime.now(),
+              updatedAt: DateTime.now(),
+            ),
+          ],
+        );
+
+        dispatcher = KevActionDispatcher(
+          taskRepository: taskRepo,
+          noteRepository: noteRepo,
+          projectRepository: projectRepo,
+          calendarRepository: calendarRepo,
+          financeRepository: financeRepo,
+          vault: vault,
+        );
+      });
+
+      test('reprograma un evento a una nueva fecha y hora', () async {
+        final newStart = DateTime(2026, 11, 15, 14, 0);
+        final action = UpdateCalendarEventAction(
+          query: 'examen matematicas',
+          newStartTime: newStart,
+        );
+
+        final result = await dispatcher.dispatch(action);
+
+        expect(result.success, isTrue);
+        expect(result.entityId, 'event-1');
+        expect(result.userMessage, contains('reprogramado para el 15/11/2026 14:00'));
+        expect(calendarRepo.lastUpdatedEvent?.startTime, newStart);
+        // La duración original de 2 horas se debe preservar
+        expect(calendarRepo.lastUpdatedEvent?.endTime, DateTime(2026, 11, 15, 16, 0));
+      });
+
+      test('cambia la ubicación y categoría de un evento', () async {
+        const action = UpdateCalendarEventAction(
+          query: 'examen matematicas',
+          location: 'Aula Magna',
+          category: 'Personal',
+        );
+
+        final result = await dispatcher.dispatch(action);
+
+        expect(result.success, isTrue);
+        expect(calendarRepo.lastUpdatedEvent?.location, 'Aula Magna');
+        expect(calendarRepo.lastUpdatedEvent?.category, 'Personal');
+      });
+
+      test('elimina un evento del calendario', () async {
+        const action = DeleteCalendarEventAction(query: 'examen matematicas');
+
+        final result = await dispatcher.dispatch(action);
+
+        expect(result.success, isTrue);
+        expect(result.userMessage, contains('eliminado del calendario'));
+        expect(calendarRepo.lastDeletedEventId, 'event-1');
+      });
+
+      test('falla amigablemente si el evento no existe', () async {
+        const action = DeleteCalendarEventAction(query: 'concierto de rock');
+
+        final result = await dispatcher.dispatch(action);
+
+        expect(result.success, isFalse);
+        expect(result.userMessage, contains('No encontré ningún evento'));
+      });
+    });
+
+    group('Acciones CRUD sobre Proyectos', () {
+      setUp(() {
+        projectRepo = FakeProjectRepository(
+          encryptionService: encryptionService,
+          vault: vault,
+          mockProjects: [
+            ProjectItem(
+              id: 'proj-1',
+              name: 'Lanzamiento Life-OS',
+              description: 'Versión inicial',
+              status: ProjectStatus.active,
+              colorHex: '#0284C7',
+              createdAt: DateTime.now(),
+              updatedAt: DateTime.now(),
+            ),
+          ],
+        );
+
+        dispatcher = KevActionDispatcher(
+          taskRepository: taskRepo,
+          noteRepository: noteRepo,
+          projectRepository: projectRepo,
+          calendarRepository: calendarRepo,
+          financeRepository: financeRepo,
+          vault: vault,
+        );
+      });
+
+      test('cambia el estado de un proyecto a completado', () async {
+        const action = UpdateProjectAction(
+          query: 'lanzamiento life os',
+          status: ProjectStatus.completed,
+        );
+
+        final result = await dispatcher.dispatch(action);
+
+        expect(result.success, isTrue);
+        expect(result.entityId, 'proj-1');
+        expect(result.userMessage, contains('cambiado a estado Completado'));
+        expect(projectRepo.lastUpdatedProject?.status, ProjectStatus.completed);
+      });
+
+      test('renombra un proyecto', () async {
+        const action = UpdateProjectAction(
+          query: 'lanzamiento life os',
+          newName: 'Life-OS 2.0',
+        );
+
+        final result = await dispatcher.dispatch(action);
+
+        expect(result.success, isTrue);
+        expect(result.userMessage, contains('renombrado a "Life-OS 2.0"'));
+        expect(projectRepo.lastUpdatedProject?.name, 'Life-OS 2.0');
+      });
+
+      test('elimina un proyecto existente', () async {
+        const action = DeleteProjectAction(query: 'lanzamiento life os');
+
+        final result = await dispatcher.dispatch(action);
+
+        expect(result.success, isTrue);
+        expect(result.userMessage, contains('eliminado'));
+        expect(projectRepo.lastDeletedProjectId, 'proj-1');
+      });
+
+      test('falla amigablemente si el proyecto no existe', () async {
+        const action = DeleteProjectAction(query: 'proyecto inexistente');
+
+        final result = await dispatcher.dispatch(action);
+
+        expect(result.success, isFalse);
+        expect(result.userMessage, contains('No encontré ningún proyecto'));
+      });
     });
   });
 }
