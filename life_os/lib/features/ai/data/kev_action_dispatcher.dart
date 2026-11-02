@@ -208,14 +208,18 @@ class KevActionDispatcher {
       isAllDay: action.isAllDay,
       location: action.location,
       description: action.description,
+      category: action.category,
     );
 
     final dateStr = DateFormat('dd/MM/yyyy HH:mm').format(action.startTime);
     final locPart =
         action.location.isNotEmpty ? ' en ${action.location}' : '';
+    final catPart = action.category.isNotEmpty && action.category != 'Personal'
+        ? ' [${action.category}]'
+        : '';
 
     return KevExecutionResult.success(
-      userMessage: 'Evento agendado: "${event.title}" ($dateStr$locPart).',
+      userMessage: 'Evento agendado: "${event.title}"$catPart ($dateStr$locPart).',
       actionType: action.actionName,
       entityId: event.id,
       createdItem: event,

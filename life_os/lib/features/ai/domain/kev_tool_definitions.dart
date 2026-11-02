@@ -150,6 +150,12 @@ class KevToolDefinitions {
             'type': 'string',
             'description': 'Ubicación física, dirección o enlace de videollamada.',
           },
+          'category': {
+            'type': 'string',
+            'enum': ['Personal', 'Trabajo', 'Estudios', 'Salud', 'Otro'],
+            'description':
+                'Categoría del evento: Personal (defecto), Trabajo, Estudios, Salud, Otro.',
+          },
           'description': {
             'type': 'string',
             'description': 'Detalles adicionales de la reunión o agenda.',

@@ -107,6 +107,28 @@ void main() {
       expect(action.endTime, startTime.add(const Duration(hours: 1)));
       expect(action.isAllDay, isFalse);
       expect(action.location, 'Google Meet');
+      expect(action.category, 'Personal');
+    });
+
+    test('CreateCalendarEventAction parsea category y location explícitos', () {
+      final startTime = DateTime.parse('2026-11-12T09:00:00Z');
+      final args = {
+        'title': 'Examen de Matemáticas',
+        'start_time': startTime.toIso8601String(),
+        'location': 'CEN',
+        'category': 'Estudios',
+        'is_all_day': true,
+        'description': 'Examen de matemáticas',
+      };
+
+      final action = KevAction.fromToolCall('create_calendar_event', args)
+          as CreateCalendarEventAction;
+
+      expect(action.title, 'Examen de Matemáticas');
+      expect(action.location, 'CEN');
+      expect(action.category, 'Estudios');
+      expect(action.isAllDay, isTrue);
+      expect(action.description, 'Examen de matemáticas');
     });
 
     test('LogFinanceAction tolera montos como string con coma o punto decimal', () {

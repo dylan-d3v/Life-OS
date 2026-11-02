@@ -248,6 +248,7 @@ class CreateCalendarEventAction extends KevAction {
   final DateTime endTime;
   final bool isAllDay;
   final String location;
+  final String category;
   final String description;
 
   const CreateCalendarEventAction({
@@ -256,6 +257,7 @@ class CreateCalendarEventAction extends KevAction {
     required this.endTime,
     this.isAllDay = false,
     this.location = '',
+    this.category = 'Personal',
     this.description = '',
   });
 
@@ -272,6 +274,7 @@ class CreateCalendarEventAction extends KevAction {
         'end_time': endTime.toIso8601String(),
         'is_all_day': isAllDay,
         'location': location,
+        'category': category,
         'description': description,
       },
     };
@@ -304,12 +307,16 @@ class CreateCalendarEventAction extends KevAction {
     final isAllDay = map['is_all_day'] == true ||
         map['is_all_day']?.toString().toLowerCase() == 'true';
 
+    final rawCat = map['category']?.toString().trim() ?? '';
+    final category = rawCat.isNotEmpty ? rawCat : 'Personal';
+
     return CreateCalendarEventAction(
       title: title,
       startTime: startTime,
       endTime: endTime,
       isAllDay: isAllDay,
       location: map['location']?.toString().trim() ?? '',
+      category: category,
       description: map['description']?.toString().trim() ?? '',
     );
   }
