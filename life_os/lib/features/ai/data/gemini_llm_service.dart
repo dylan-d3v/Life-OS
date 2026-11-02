@@ -19,7 +19,7 @@ class GeminiLlmService implements KevLlmService {
 
   static const String _defaultEndpoint =
       'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
-  static const String _defaultModel = 'gemini-3.8-flash';
+  static const String _defaultModel = 'gemini-3.5-flash';
 
   @override
   String get providerName => 'Google Gemini ($model)';
@@ -92,7 +92,15 @@ class GeminiLlmService implements KevLlmService {
       ],
       'tools': KevToolDefinitions.allTools,
       'tool_choice': 'auto',
-      'temperature': 0.1,
+      'temperature': 0.0,
+      'max_tokens': 250,
+      'extra_body': {
+        'google': {
+          'thinking_config': {
+            'thinking_budget': 0,
+          },
+        },
+      },
     };
 
     try {
