@@ -65,6 +65,7 @@ class TaskListNotifier extends AsyncNotifier<List<TaskItem>> {
     String notes = '',
     int priority = 2,
     DateTime? dueDate,
+    String? projectId,
   }) async {
     final repo = ref.read(taskRepositoryProvider);
     final newTask = await repo.createTask(
@@ -72,6 +73,7 @@ class TaskListNotifier extends AsyncNotifier<List<TaskItem>> {
       notes: notes,
       priority: priority,
       dueDate: dueDate,
+      projectId: projectId,
     );
 
     // Añadir al inicio de la lista local sin recargar todo

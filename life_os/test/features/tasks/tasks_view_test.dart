@@ -148,7 +148,89 @@ void main() {
     expect(find.text('Nueva Tarea Cifrada'), findsOneWidget);
     expect(find.text('Título'), findsOneWidget);
     expect(find.text('Notas (opcional)'), findsOneWidget);
+    expect(find.text('Proyecto Asociado'), findsOneWidget);
     expect(find.text('Prioridad'), findsOneWidget);
     expect(find.text('Crear Tarea'), findsOneWidget);
+  });
+
+  testWidgets('TasksView abre diálogo de edición al hacer doble clic en una tarea',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1280, 800));
+
+    final sampleTask = TaskItem(
+      id: 'task-100',
+      title: 'Planificar arquitectura satélite',
+      notes: 'Notas de diseño',
+      status: TaskStatus.todo,
+      priority: 3,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          taskListProvider.overrideWith(() => MockTaskListNotifier([sampleTask])),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(body: TasksView()),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    // Validar que la tarea aparece
+    final taskFinder = find.text('Planificar arquitectura satélite');
+    expect(taskFinder, findsOneWidget);
+
+    // Hacer doble clic (doble tap) sobre la tarea
+    await tester.tap(taskFinder);
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tap(taskFinder);
+    await tester.pumpAndSettle();
+
+    // Validar que se abrió en modo edición
+    expect(find.text('Editar Tarea Cifrada'), findsOneWidget);
+    expect(find.text('Guardar Cambios'), findsOneWidget);
+    expect(find.text('Planificar arquitectura satélite'), findsWidgets);
+  });
+
+  testWidgets('TasksView abre diálogo de edición al pulsar el botón de editar',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1280, 800));
+
+    final sampleTask = TaskItem(
+      id: 'task-101',
+      title: 'Revisar PR de autenticación',
+      status: TaskStatus.todo,
+      priority: 2,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          taskListProvider.overrideWith(() => MockTaskListNotifier([sampleTask])),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(body: TasksView()),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    // Pulsar botón de editar (icono edit_outlined)
+    final editButton = find.byIcon(Icons.edit_outlined);
+    expect(editButton, findsOneWidget);
+
+    await tester.tap(editButton);
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Editar Tarea Cifrada'), findsOneWidget);
+    expect(find.text('Guardar Cambios'), findsOneWidget);
   });
 }

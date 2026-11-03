@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../ai/presentation/widgets/daily_briefing_card.dart';
+import '../../projects/presentation/projects_provider.dart';
 import '../domain/task_item.dart';
 import 'tasks_provider.dart';
 
@@ -52,7 +53,7 @@ class TasksView extends ConsumerWidget {
               ),
               const SizedBox(width: 16),
               ElevatedButton.icon(
-                onPressed: () => _showCreateTaskDialog(context, ref),
+                onPressed: () => _openTaskDialog(context, ref),
                 icon: const Icon(Icons.add, size: 18),
                 label: const Text('Nueva Tarea'),
                 style: ElevatedButton.styleFrom(
@@ -204,13 +205,14 @@ class TasksView extends ConsumerWidget {
       ),
     );
   }
+}
 
-  void _showCreateTaskDialog(BuildContext context, WidgetRef ref) {
-    showDialog(
-      context: context,
-      builder: (ctx) => _CreateTaskDialog(ref: ref),
-    );
-  }
+/// Abre el diálogo para crear una nueva tarea o editar una existente.
+void _openTaskDialog(BuildContext context, WidgetRef ref, {TaskItem? task}) {
+  showDialog(
+    context: context,
+    builder: (ctx) => _TaskEditorDialog(ref: ref, initialTask: task),
+  );
 }
 
 // =============================================================================
@@ -284,7 +286,8 @@ class _TaskCard extends ConsumerWidget {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(10),
-          onTap: () {}, // Futura: abrir detalle de tarea
+          onTap: () {},
+          onDoubleTap: () => _openTaskDialog(context, ref, task: task),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Row(
@@ -376,6 +379,16 @@ class _TaskCard extends ConsumerWidget {
                 // Prioridad badge
                 const SizedBox(width: 8),
                 _PriorityBadge(priority: task.priority),
+
+                // Botón editar (o doble clic)
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: const Icon(Icons.edit_outlined,
+                      size: 18, color: Color(0xFF64748B)),
+                  tooltip: 'Editar tarea (doble clic)',
+                  onPressed: () => _openTaskDialog(context, ref, task: task),
+                  splashRadius: 18,
+                ),
 
                 // Botón eliminar
                 const SizedBox(width: 8),
@@ -528,24 +541,43 @@ class _PriorityBadge extends StatelessWidget {
 }
 
 // =============================================================================
-// Dialog: Crear nueva tarea
+// Dialog: Editor de Tarea (Crear / Modificar con selector de Proyecto)
 // =============================================================================
 
-class _CreateTaskDialog extends ConsumerStatefulWidget {
-  const _CreateTaskDialog({required this.ref});
+class _TaskEditorDialog extends ConsumerStatefulWidget {
+  const _TaskEditorDialog({
+    required this.ref,
+    this.initialTask,
+  });
 
   final WidgetRef ref;
+  final TaskItem? initialTask;
 
   @override
-  ConsumerState<_CreateTaskDialog> createState() => _CreateTaskDialogState();
+  ConsumerState<_TaskEditorDialog> createState() => _TaskEditorDialogState();
 }
 
-class _CreateTaskDialogState extends ConsumerState<_CreateTaskDialog> {
-  final _titleCtrl = TextEditingController();
-  final _notesCtrl = TextEditingController();
-  int _priority = 2;
+class _TaskEditorDialogState extends ConsumerState<_TaskEditorDialog> {
+  late final TextEditingController _titleCtrl;
+  late final TextEditingController _notesCtrl;
+  late int _priority;
   DateTime? _dueDate;
+  String? _selectedProjectId;
   bool _isLoading = false;
+
+  bool get _isEditing => widget.initialTask != null;
+
+  @override
+  void initState() {
+    super.initState();
+    _titleCtrl =
+        TextEditingController(text: widget.initialTask?.title ?? '');
+    _notesCtrl =
+        TextEditingController(text: widget.initialTask?.notes ?? '');
+    _priority = widget.initialTask?.priority ?? 2;
+    _dueDate = widget.initialTask?.dueDate;
+    _selectedProjectId = widget.initialTask?.projectId;
+  }
 
   @override
   void dispose() {
@@ -554,17 +586,35 @@ class _CreateTaskDialogState extends ConsumerState<_CreateTaskDialog> {
     super.dispose();
   }
 
+  Color _parseColor(String hex) {
+    try {
+      final clean = hex.replaceAll('#', '');
+      return Color(int.parse('0xFF$clean'));
+    } catch (_) {
+      return const Color(0xFF0284C7);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final projectsAsync = ref.watch(projectListProvider);
+    final projects = projectsAsync.value ?? [];
+
+    final hasValidProject = _selectedProjectId == null ||
+        projects.any((p) => p.id == _selectedProjectId);
+    final currentProjectId = hasValidProject ? _selectedProjectId : null;
+
     return AlertDialog(
       backgroundColor: const Color(0xFF1E293B),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      title: const Row(
+      title: Row(
         children: [
-          Icon(Icons.lock_outline, color: Color(0xFF38BDF8), size: 20),
-          SizedBox(width: 8),
-          Text('Nueva Tarea Cifrada',
-              style: TextStyle(color: Colors.white, fontSize: 18)),
+          const Icon(Icons.lock_outline, color: Color(0xFF38BDF8), size: 20),
+          const SizedBox(width: 8),
+          Text(
+            _isEditing ? 'Editar Tarea Cifrada' : 'Nueva Tarea Cifrada',
+            style: const TextStyle(color: Colors.white, fontSize: 18),
+          ),
         ],
       ),
       content: SizedBox(
@@ -579,7 +629,7 @@ class _CreateTaskDialogState extends ConsumerState<_CreateTaskDialog> {
                 controller: _titleCtrl,
                 label: 'Título',
                 hint: 'Ej: Estudiar para el examen de cálculo',
-                autofocus: true,
+                autofocus: !_isEditing,
               ),
               const SizedBox(height: 14),
 
@@ -589,6 +639,80 @@ class _CreateTaskDialogState extends ConsumerState<_CreateTaskDialog> {
                 label: 'Notas (opcional)',
                 hint: 'Detalles adicionales...',
                 maxLines: 3,
+              ),
+              const SizedBox(height: 14),
+
+              // Selector de Proyecto Asociado
+              const Text(
+                'Proyecto Asociado',
+                style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+              ),
+              const SizedBox(height: 6),
+              DropdownButtonFormField<String?>(
+                initialValue: currentProjectId,
+                dropdownColor: const Color(0xFF1E293B),
+                style: const TextStyle(color: Colors.white, fontSize: 13),
+                icon: const Icon(Icons.arrow_drop_down,
+                    color: Color(0xFF94A3B8)),
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor: const Color(0xFF0F172A),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: Color(0xFF334155)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: Color(0xFF334155)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: Color(0xFF0284C7)),
+                  ),
+                ),
+                items: [
+                  const DropdownMenuItem<String?>(
+                    value: null,
+                    child: Row(
+                      children: [
+                        Icon(Icons.folder_off_outlined,
+                            size: 16, color: Color(0xFF64748B)),
+                        SizedBox(width: 8),
+                        Text('Sin proyecto asignado',
+                            style: TextStyle(color: Color(0xFF94A3B8))),
+                      ],
+                    ),
+                  ),
+                  ...projects.map((p) {
+                    final color = _parseColor(p.colorHex);
+                    return DropdownMenuItem<String?>(
+                      value: p.id,
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 10,
+                            height: 10,
+                            decoration: BoxDecoration(
+                              color: color,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            p.name,
+                            style: const TextStyle(color: Colors.white),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+                ],
+                onChanged: (val) {
+                  setState(() => _selectedProjectId = val);
+                },
               ),
               const SizedBox(height: 14),
 
@@ -682,7 +806,7 @@ class _CreateTaskDialogState extends ConsumerState<_CreateTaskDialog> {
                     color: Colors.white,
                   ),
                 )
-              : const Text('Crear Tarea'),
+              : Text(_isEditing ? 'Guardar Cambios' : 'Crear Tarea'),
         ),
       ],
     );
@@ -732,8 +856,9 @@ class _CreateTaskDialogState extends ConsumerState<_CreateTaskDialog> {
           duration: const Duration(milliseconds: 200),
           padding: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
-            color:
-                selected ? color.withValues(alpha: 0.2) : const Color(0xFF0F172A),
+            color: selected
+                ? color.withValues(alpha: 0.2)
+                : const Color(0xFF0F172A),
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
               color: selected ? color : const Color(0xFF334155),
@@ -783,18 +908,32 @@ class _CreateTaskDialogState extends ConsumerState<_CreateTaskDialog> {
     setState(() => _isLoading = true);
 
     try {
-      await ref.read(taskListProvider.notifier).addTask(
-            title: title,
-            notes: _notesCtrl.text.trim(),
-            priority: _priority,
-            dueDate: _dueDate,
-          );
+      if (_isEditing) {
+        final updatedTask = widget.initialTask!.copyWith(
+          title: title,
+          notes: _notesCtrl.text.trim(),
+          priority: _priority,
+          dueDate: _dueDate,
+          projectId: _selectedProjectId,
+          updatedAt: DateTime.now(),
+        );
+        await ref.read(taskListProvider.notifier).updateTask(updatedTask);
+      } else {
+        await ref.read(taskListProvider.notifier).addTask(
+              title: title,
+              notes: _notesCtrl.text.trim(),
+              priority: _priority,
+              dueDate: _dueDate,
+              projectId: _selectedProjectId,
+            );
+      }
       if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error al crear tarea: $e'),
+            content: Text(
+                'Error al ${_isEditing ? "actualizar" : "crear"} tarea: $e'),
             backgroundColor: const Color(0xFFEF4444),
           ),
         );
