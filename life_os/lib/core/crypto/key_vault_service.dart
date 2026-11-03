@@ -8,6 +8,9 @@ class KeyVaultService {
   final Pbkdf2 _kdf;
   SecretKey? _activeKey;
 
+  /// Callback invocado cuando la bóveda cambia de estado (desbloqueada / bloqueada).
+  void Function(bool isUnlocked)? onUnlockStateChanged;
+
   KeyVaultService({Pbkdf2? kdf})
       : _kdf = kdf ??
             Pbkdf2(
@@ -36,9 +39,11 @@ class KeyVaultService {
     return derivedKey;
   }
 
-  /// Establece la clave simétrica activa para la sesión del usuario.
+  /// Establece la clave simétrica activa para la sesión del usuario
+  /// y notifica a los observadores reactivos.
   void setActiveKey(SecretKey key) {
     _activeKey = key;
+    onUnlockStateChanged?.call(true);
   }
 
   /// Retorna la clave activa para operaciones de cifrado/descifrado.
@@ -53,9 +58,11 @@ class KeyVaultService {
   /// Indica si la bóveda está desbloqueada y lista para operar.
   bool get isUnlocked => _activeKey != null;
 
-  /// Bloquea la bóveda y limpia la clave de la memoria al cerrar sesión.
+  /// Bloquea la bóveda, limpia la clave de la memoria al cerrar sesión
+  /// y notifica a los observadores reactivos.
   void lockVault() {
     _activeKey = null;
+    onUnlockStateChanged?.call(false);
   }
 }
 
