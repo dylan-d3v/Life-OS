@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../ai/presentation/widgets/daily_briefing_card.dart';
+import '../../projects/domain/project_item.dart';
 import '../../projects/presentation/projects_provider.dart';
 import '../domain/task_item.dart';
 import 'tasks_provider.dart';
@@ -271,6 +272,8 @@ class _TaskCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final isDone = task.status == TaskStatus.done;
     final priorityColor = _priorityColor(task.priority);
+    final projectMap = ref.watch(projectMapProvider);
+    final project = task.projectId != null ? projectMap[task.projectId] : null;
 
     return Container(
       decoration: BoxDecoration(
@@ -369,6 +372,12 @@ class _TaskCard extends ConsumerWidget {
                     ],
                   ),
                 ),
+
+                // Badge de Proyecto Asociado
+                if (project != null) ...[
+                  const SizedBox(width: 8),
+                  _ProjectBadge(project: project),
+                ],
 
                 // Fecha de vencimiento
                 if (task.dueDate != null) ...[
@@ -535,6 +544,57 @@ class _PriorityBadge extends StatelessWidget {
       child: Text(
         label,
         style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w600),
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// Widget: Badge de proyecto asociado
+// =============================================================================
+
+class _ProjectBadge extends StatelessWidget {
+  const _ProjectBadge({required this.project});
+
+  final ProjectItem project;
+
+  Color _parseColor(String hex) {
+    try {
+      final clean = hex.replaceAll('#', '');
+      return Color(int.parse('0xFF$clean'));
+    } catch (_) {
+      return const Color(0xFF0284C7);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _parseColor(project.colorHex);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.folder_outlined, size: 12, color: color),
+          const SizedBox(width: 4),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 130),
+            child: Text(
+              project.name,
+              style: TextStyle(
+                color: color,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
       ),
     );
   }

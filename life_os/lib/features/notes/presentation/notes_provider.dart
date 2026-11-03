@@ -71,6 +71,7 @@ class NoteListNotifier extends AsyncNotifier<List<NoteItem>> {
     String content = '',
     List<String> tags = const [],
     bool isPinned = false,
+    String? projectId,
   }) async {
     final repo = ref.read(noteRepositoryProvider);
     final newNote = await repo.createNote(
@@ -78,6 +79,7 @@ class NoteListNotifier extends AsyncNotifier<List<NoteItem>> {
       content: content,
       tags: tags,
       isPinned: isPinned,
+      projectId: projectId,
     );
 
     state = state.whenData((notes) => [newNote, ...notes]);

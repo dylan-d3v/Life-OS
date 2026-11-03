@@ -135,3 +135,10 @@ final filteredProjectsProvider =
   });
 });
 
+/// Proveedor que indexa los proyectos por su ID en memoria para búsquedas O(1).
+final projectMapProvider = Provider<Map<String, ProjectItem>>((ref) {
+  final projectsAsync = ref.watch(projectListProvider);
+  final projects = projectsAsync.value ?? [];
+  return {for (final p in projects) p.id: p};
+});
+

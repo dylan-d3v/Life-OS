@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:life_os/features/projects/domain/project_item.dart';
+import 'package:life_os/features/projects/presentation/projects_provider.dart';
 import 'package:life_os/features/tasks/domain/task_item.dart';
 import 'package:life_os/features/tasks/presentation/tasks_provider.dart';
 import 'package:life_os/features/tasks/presentation/tasks_view.dart';
@@ -35,6 +37,14 @@ class MockTaskListNotifier extends TaskListNotifier {
       (tasks) => tasks.where((t) => t.id != taskId).toList(),
     );
   }
+}
+
+class MockProjectListNotifier extends ProjectListNotifier {
+  final List<ProjectItem> _projects;
+  MockProjectListNotifier([this._projects = const []]);
+
+  @override
+  Future<List<ProjectItem>> build() async => _projects;
 }
 
 void main() {
@@ -232,5 +242,49 @@ void main() {
 
     expect(find.text('Editar Tarea Cifrada'), findsOneWidget);
     expect(find.text('Guardar Cambios'), findsOneWidget);
+  });
+
+  testWidgets(
+      'TasksView renderiza badge de proyecto asociado en la tarjeta de tarea',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1280, 800));
+
+    final sampleProject = ProjectItem(
+      id: 'proj-99',
+      name: 'Satélite Cubesat',
+      colorHex: '#10B981',
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+
+    final sampleTask = TaskItem(
+      id: 'task-303',
+      title: 'Soldar módulo de radio',
+      status: TaskStatus.todo,
+      priority: 3,
+      projectId: 'proj-99',
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          taskListProvider
+              .overrideWith(() => MockTaskListNotifier([sampleTask])),
+          projectListProvider
+              .overrideWith(() => MockProjectListNotifier([sampleProject])),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(body: TasksView()),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    expect(find.text('Soldar módulo de radio'), findsOneWidget);
+    expect(find.text('Satélite Cubesat'), findsOneWidget);
+    expect(find.byIcon(Icons.folder_outlined), findsOneWidget);
   });
 }

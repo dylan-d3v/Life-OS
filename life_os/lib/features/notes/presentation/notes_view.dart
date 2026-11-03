@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../projects/domain/project_item.dart';
+import '../../projects/presentation/projects_provider.dart';
 import '../domain/note_item.dart';
 import 'notes_provider.dart';
 
@@ -297,6 +299,9 @@ class _NoteCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final projectMap = ref.watch(projectMapProvider);
+    final project = note.projectId != null ? projectMap[note.projectId] : null;
+
     return Container(
       decoration: BoxDecoration(
         color: const Color(0xFF1E293B),
@@ -375,32 +380,37 @@ class _NoteCard extends ConsumerWidget {
                 ),
                 const SizedBox(height: 8),
 
-                // Tags si existen
-                if (note.tags.isNotEmpty)
+                // Tags y Proyecto si existen
+                if (project != null || note.tags.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 6),
                     child: Wrap(
                       spacing: 4,
                       runSpacing: 4,
-                      children: note.tags.take(3).map((tag) {
-                        return Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF0F172A),
-                            borderRadius: BorderRadius.circular(4),
-                            border: Border.all(
-                                color: const Color(0xFF334155)),
-                          ),
-                          child: Text(
-                            '#$tag',
-                            style: const TextStyle(
-                              color: Color(0xFF38BDF8),
-                              fontSize: 10,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        if (project != null)
+                          _ProjectBadge(project: project),
+                        ...note.tags.take(3).map((tag) {
+                          return Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF0F172A),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(
+                                  color: const Color(0xFF334155)),
                             ),
-                          ),
-                        );
-                      }).toList(),
+                            child: Text(
+                              '#$tag',
+                              style: const TextStyle(
+                                color: Color(0xFF38BDF8),
+                                fontSize: 10,
+                              ),
+                            ),
+                          );
+                        }),
+                      ],
                     ),
                   ),
 
@@ -466,6 +476,57 @@ class _NoteCard extends ConsumerWidget {
 }
 
 // =============================================================================
+// Widget: Badge de Proyecto Asociado
+// =============================================================================
+
+class _ProjectBadge extends StatelessWidget {
+  const _ProjectBadge({required this.project});
+
+  final ProjectItem project;
+
+  Color _parseColor(String hex) {
+    try {
+      final clean = hex.replaceAll('#', '');
+      return Color(int.parse('0xFF$clean'));
+    } catch (_) {
+      return const Color(0xFF0284C7);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _parseColor(project.colorHex);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.folder_outlined, size: 11, color: color),
+          const SizedBox(width: 4),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 110),
+            child: Text(
+              project.name,
+              style: TextStyle(
+                color: color,
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// =============================================================================
 // Dialog: Editor de Nota (Crear / Modificar)
 // =============================================================================
 
@@ -487,6 +548,7 @@ class _NoteEditorDialogState extends ConsumerState<_NoteEditorDialog> {
   late final TextEditingController _contentCtrl;
   late final TextEditingController _tagsCtrl;
   late bool _isPinned;
+  String? _selectedProjectId;
   bool _isLoading = false;
 
   bool get _isEditing => widget.initialNote != null;
@@ -502,6 +564,7 @@ class _NoteEditorDialogState extends ConsumerState<_NoteEditorDialog> {
       text: widget.initialNote?.tags.join(', ') ?? '',
     );
     _isPinned = widget.initialNote?.isPinned ?? false;
+    _selectedProjectId = widget.initialNote?.projectId;
   }
 
   @override
@@ -512,8 +575,24 @@ class _NoteEditorDialogState extends ConsumerState<_NoteEditorDialog> {
     super.dispose();
   }
 
+  Color _parseColor(String hex) {
+    try {
+      final clean = hex.replaceAll('#', '');
+      return Color(int.parse('0xFF$clean'));
+    } catch (_) {
+      return const Color(0xFF0284C7);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final projectsAsync = ref.watch(projectListProvider);
+    final projects = projectsAsync.value ?? [];
+
+    final hasValidProject = _selectedProjectId == null ||
+        projects.any((p) => p.id == _selectedProjectId);
+    final currentProjectId = hasValidProject ? _selectedProjectId : null;
+
     return AlertDialog(
       backgroundColor: const Color(0xFF1E293B),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -613,6 +692,80 @@ class _NoteEditorDialogState extends ConsumerState<_NoteEditorDialog> {
                   ),
                 ),
               ),
+              const SizedBox(height: 14),
+
+              // Selector de Proyecto Asociado
+              const Text(
+                'Proyecto Asociado',
+                style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+              ),
+              const SizedBox(height: 6),
+              DropdownButtonFormField<String?>(
+                initialValue: currentProjectId,
+                dropdownColor: const Color(0xFF1E293B),
+                style: const TextStyle(color: Colors.white, fontSize: 13),
+                icon: const Icon(Icons.arrow_drop_down,
+                    color: Color(0xFF94A3B8)),
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor: const Color(0xFF0F172A),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: Color(0xFF334155)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: Color(0xFF334155)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: Color(0xFF0284C7)),
+                  ),
+                ),
+                items: [
+                  const DropdownMenuItem<String?>(
+                    value: null,
+                    child: Row(
+                      children: [
+                        Icon(Icons.folder_off_outlined,
+                            size: 16, color: Color(0xFF64748B)),
+                        SizedBox(width: 8),
+                        Text('Sin proyecto asignado',
+                            style: TextStyle(color: Color(0xFF94A3B8))),
+                      ],
+                    ),
+                  ),
+                  ...projects.map((p) {
+                    final color = _parseColor(p.colorHex);
+                    return DropdownMenuItem<String?>(
+                      value: p.id,
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 10,
+                            height: 10,
+                            decoration: BoxDecoration(
+                              color: color,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            p.name,
+                            style: const TextStyle(color: Colors.white),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+                ],
+                onChanged: (val) {
+                  setState(() => _selectedProjectId = val);
+                },
+              ),
               const SizedBox(height: 12),
 
               Row(
@@ -701,6 +854,7 @@ class _NoteEditorDialogState extends ConsumerState<_NoteEditorDialog> {
           content: content,
           tags: tags,
           isPinned: _isPinned,
+          projectId: _selectedProjectId,
           updatedAt: DateTime.now(),
         );
         await ref.read(noteListProvider.notifier).updateNote(updatedNote);
@@ -710,6 +864,7 @@ class _NoteEditorDialogState extends ConsumerState<_NoteEditorDialog> {
               content: content,
               tags: tags,
               isPinned: _isPinned,
+              projectId: _selectedProjectId,
             );
       }
       if (mounted) Navigator.pop(context);

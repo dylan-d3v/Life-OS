@@ -4,6 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:life_os/features/notes/domain/note_item.dart';
 import 'package:life_os/features/notes/presentation/notes_provider.dart';
 import 'package:life_os/features/notes/presentation/notes_view.dart';
+import 'package:life_os/features/projects/domain/project_item.dart';
+import 'package:life_os/features/projects/presentation/projects_provider.dart';
 
 class MockNoteListNotifier extends NoteListNotifier {
   final List<NoteItem> _initialNotes;
@@ -32,6 +34,14 @@ class MockNoteListNotifier extends NoteListNotifier {
       (notes) => notes.where((n) => n.id != noteId).toList(),
     );
   }
+}
+
+class MockProjectListNotifier extends ProjectListNotifier {
+  final List<ProjectItem> _projects;
+  MockProjectListNotifier([this._projects = const []]);
+
+  @override
+  Future<List<ProjectItem>> build() async => _projects;
 }
 
 void main() {
@@ -146,8 +156,59 @@ void main() {
     expect(find.text('Contenido (apuntes, ideas o texto enriquecido)'),
         findsOneWidget);
     expect(find.text('Etiquetas (separadas por comas)'), findsOneWidget);
+    expect(find.text('Proyecto Asociado'), findsOneWidget);
+    expect(find.text('Sin proyecto asignado'), findsOneWidget);
     expect(find.text('Fijar esta nota al inicio'), findsOneWidget);
     expect(find.text('Crear Nota'), findsOneWidget);
+  });
+
+  testWidgets('NotesView muestra selector con proyectos y permite asociar proyecto',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1280, 800));
+
+    final sampleProject = ProjectItem(
+      id: 'proj-123',
+      name: 'Life-OS Mobile',
+      colorHex: '#3B82F6',
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+
+    final sampleNote = NoteItem(
+      id: 'note-55',
+      title: 'Arquitectura Criptográfica',
+      content: 'Zero Knowledge E2EE',
+      projectId: 'proj-123',
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          noteListProvider.overrideWith(() => MockNoteListNotifier([sampleNote])),
+          projectListProvider.overrideWith(() => MockProjectListNotifier([sampleProject])),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(body: NotesView()),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    // Validar que el badge del proyecto aparece en la tarjeta
+    expect(find.text('Life-OS Mobile'), findsOneWidget);
+    expect(find.byIcon(Icons.folder_outlined), findsOneWidget);
+
+    // Abrir la nota existente pulsando en ella
+    await tester.tap(find.text('Arquitectura Criptográfica'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Editar Nota Cifrada'), findsOneWidget);
+    expect(find.text('Proyecto Asociado'), findsOneWidget);
+    expect(find.text('Life-OS Mobile'), findsWidgets);
+    expect(find.text('Guardar Cambios'), findsOneWidget);
   });
 }
 
