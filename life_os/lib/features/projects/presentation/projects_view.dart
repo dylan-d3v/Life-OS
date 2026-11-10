@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../notes/presentation/notes_provider.dart';
+import '../../shell/presentation/navigation_provider.dart';
+import '../../tasks/presentation/tasks_provider.dart';
 import '../domain/project_item.dart';
 import 'projects_provider.dart';
 
@@ -152,7 +155,7 @@ class ProjectsView extends ConsumerWidget {
                   gridDelegate:
                       const SliverGridDelegateWithMaxCrossAxisExtent(
                     maxCrossAxisExtent: 400,
-                    mainAxisExtent: 210,
+                    mainAxisExtent: 250,
                     crossAxisSpacing: 16,
                     mainAxisSpacing: 16,
                   ),
@@ -293,6 +296,8 @@ class _ProjectCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final themeColor = _parseColor(project.colorHex);
+    final metricsMap = ref.watch(projectMetricsMapProvider);
+    final metrics = metricsMap[project.id] ?? const ProjectMetrics();
 
     return Container(
       decoration: BoxDecoration(
@@ -340,21 +345,142 @@ class _ProjectCard extends ConsumerWidget {
                       const SizedBox(height: 8),
 
                       // Descripción
-                      Expanded(
-                        child: Text(
-                          project.description.isNotEmpty
-                              ? project.description
-                              : '(Sin descripción detallada)',
-                          style: TextStyle(
-                            color: project.description.isNotEmpty
-                                ? const Color(0xFFCBD5E1)
-                                : const Color(0xFF64748B),
-                            fontSize: 13,
-                            height: 1.4,
-                          ),
-                          maxLines: 3,
-                          overflow: TextOverflow.ellipsis,
+                      Text(
+                        project.description.isNotEmpty
+                            ? project.description
+                            : '(Sin descripción detallada)',
+                        style: TextStyle(
+                          color: project.description.isNotEmpty
+                              ? const Color(0xFFCBD5E1)
+                              : const Color(0xFF64748B),
+                          fontSize: 13,
+                          height: 1.4,
                         ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 10),
+
+                      // Barra de Progreso de Tareas
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            metrics.totalTasks > 0
+                                ? 'Progreso: ${metrics.progressPercentage}% (${metrics.completedTasks}/${metrics.totalTasks} tareas)'
+                                : 'Sin tareas asociadas',
+                            style: const TextStyle(
+                              color: Color(0xFF94A3B8),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          if (metrics.totalTasks > 0 && metrics.progress >= 1.0)
+                            const Icon(Icons.check_circle,
+                                size: 13, color: Color(0xFF22C55E)),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: LinearProgressIndicator(
+                          value: metrics.progress,
+                          minHeight: 5,
+                          backgroundColor: const Color(0xFF334155),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            metrics.progress >= 1.0
+                                ? const Color(0xFF22C55E)
+                                : themeColor,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+
+                      // Pills interactivos de acceso rápido a tareas y notas vinculadas
+                      Row(
+                        children: [
+                          // Pill Tareas
+                          InkWell(
+                            onTap: () {
+                              ref
+                                  .read(taskProjectFilterProvider.notifier)
+                                  .setProject(project.id);
+                              ref
+                                  .read(activeSectionProvider.notifier)
+                                  .select(NavSection.tasks);
+                            },
+                            borderRadius: BorderRadius.circular(6),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF0F172A),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                    color: const Color(0xFF334155)),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.check_box_outlined,
+                                      size: 12,
+                                      color: metrics.completedTasks ==
+                                                  metrics.totalTasks &&
+                                              metrics.totalTasks > 0
+                                          ? const Color(0xFF22C55E)
+                                          : const Color(0xFF38BDF8)),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '${metrics.completedTasks}/${metrics.totalTasks} tareas',
+                                    style: const TextStyle(
+                                      color: Color(0xFFE2E8F0),
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+
+                          // Pill Notas
+                          InkWell(
+                            onTap: () {
+                              ref
+                                  .read(noteProjectFilterProvider.notifier)
+                                  .setProject(project.id);
+                              ref
+                                  .read(activeSectionProvider.notifier)
+                                  .select(NavSection.notes);
+                            },
+                            borderRadius: BorderRadius.circular(6),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF0F172A),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                    color: const Color(0xFF334155)),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.description_outlined,
+                                      size: 12, color: Color(0xFFF59E0B)),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '${metrics.linkedNotes} notas',
+                                    style: const TextStyle(
+                                      color: Color(0xFFE2E8F0),
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 10),
 

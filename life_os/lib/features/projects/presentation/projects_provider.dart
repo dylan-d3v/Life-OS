@@ -1,6 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/providers/crypto_providers.dart';
 import '../../../core/providers/supabase_providers.dart';
+import '../../notes/presentation/notes_provider.dart';
+import '../../tasks/domain/task_item.dart';
+import '../../tasks/presentation/tasks_provider.dart';
 import '../data/project_repository.dart';
 import '../domain/project_item.dart';
 
@@ -140,5 +143,70 @@ final projectMapProvider = Provider<Map<String, ProjectItem>>((ref) {
   final projectsAsync = ref.watch(projectListProvider);
   final projects = projectsAsync.value ?? [];
   return {for (final p in projects) p.id: p};
+});
+
+/// Métricas calculadas para un proyecto a partir de sus tareas y notas vinculadas.
+class ProjectMetrics {
+  final int totalTasks;
+  final int completedTasks;
+  final int linkedNotes;
+
+  const ProjectMetrics({
+    this.totalTasks = 0,
+    this.completedTasks = 0,
+    this.linkedNotes = 0,
+  });
+
+  /// Progreso de tareas entre 0.0 y 1.0
+  double get progress =>
+      totalTasks == 0 ? 0.0 : (completedTasks / totalTasks).clamp(0.0, 1.0);
+
+  /// Porcentaje de progreso redondeado (0 a 100)
+  int get progressPercentage => (progress * 100).round();
+}
+
+/// Proveedor reactivo que calcula métricas (tareas totales, tareas completadas, notas)
+/// para cada proyecto en memoria sin consultas adicionales a Supabase.
+final projectMetricsMapProvider =
+    Provider<Map<String, ProjectMetrics>>((ref) {
+  final tasks = ref.watch(taskListProvider).value ?? [];
+  final notes = ref.watch(noteListProvider).value ?? [];
+
+  final Map<String, int> totalTasks = {};
+  final Map<String, int> completedTasks = {};
+  final Map<String, int> linkedNotes = {};
+
+  for (final task in tasks) {
+    final pid = task.projectId;
+    if (pid != null) {
+      totalTasks[pid] = (totalTasks[pid] ?? 0) + 1;
+      if (task.status == TaskStatus.done) {
+        completedTasks[pid] = (completedTasks[pid] ?? 0) + 1;
+      }
+    }
+  }
+
+  for (final note in notes) {
+    final pid = note.projectId;
+    if (pid != null) {
+      linkedNotes[pid] = (linkedNotes[pid] ?? 0) + 1;
+    }
+  }
+
+  final allProjectIds = {
+    ...totalTasks.keys,
+    ...completedTasks.keys,
+    ...linkedNotes.keys,
+  };
+
+  final Map<String, ProjectMetrics> result = {};
+  for (final pid in allProjectIds) {
+    result[pid] = ProjectMetrics(
+      totalTasks: totalTasks[pid] ?? 0,
+      completedTasks: completedTasks[pid] ?? 0,
+      linkedNotes: linkedNotes[pid] ?? 0,
+    );
+  }
+  return result;
 });
 
