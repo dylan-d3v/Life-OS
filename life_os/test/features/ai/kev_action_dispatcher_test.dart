@@ -448,6 +448,45 @@ void main() {
       expect(decrypted['content'], 'Venta de gadgets Life-OS');
     });
 
+    test('despacha CreateNoteAction resolviendo el ID de proyecto por nombre', () async {
+      final now = DateTime.now();
+      final projects = [
+        ProjectItem(
+          id: 'proj-1',
+          name: 'Hardware ESP32',
+          createdAt: now,
+          updatedAt: now,
+        ),
+      ];
+
+      projectRepo = FakeProjectRepository(
+        encryptionService: encryptionService,
+        vault: vault,
+        mockProjects: projects,
+      );
+
+      dispatcher = KevActionDispatcher(
+        taskRepository: taskRepo,
+        noteRepository: noteRepo,
+        projectRepository: projectRepo,
+        calendarRepository: calendarRepo,
+        financeRepository: financeRepo,
+        vault: vault,
+      );
+
+      const action = CreateNoteAction(
+        title: 'Notas del microcontrolador',
+        content: 'Configuración SPI',
+        projectName: 'Hardware ESP32',
+      );
+
+      final result = await dispatcher.dispatch(action);
+
+      expect(result.success, isTrue);
+      expect(noteRepo.lastCreatedNote?.projectId, 'proj-1');
+      expect(result.userMessage, contains('en el proyecto "Hardware ESP32"'));
+    });
+
     test('despacha CreateProjectAction con color y estado', () async {
       const action = CreateProjectAction(
         name: 'Tesis de Grado',
@@ -762,6 +801,42 @@ void main() {
         expect(result.userMessage, contains('Contenido agregado'));
         expect(noteRepo.lastUpdatedNote?.content,
             'Punto 1: Crear MVP\nPunto 2: Lanzar en producción');
+      });
+
+      test('vincula una nota existente a un proyecto resolviendo su nombre', () async {
+        final now = DateTime.now();
+        projectRepo = FakeProjectRepository(
+          encryptionService: encryptionService,
+          vault: vault,
+          mockProjects: [
+            ProjectItem(
+              id: 'proj-77',
+              name: 'Satélite Cubesat',
+              createdAt: now,
+              updatedAt: now,
+            ),
+          ],
+        );
+
+        dispatcher = KevActionDispatcher(
+          taskRepository: taskRepo,
+          noteRepository: noteRepo,
+          projectRepository: projectRepo,
+          calendarRepository: calendarRepo,
+          financeRepository: financeRepo,
+          vault: vault,
+        );
+
+        const action = UpdateNoteAction(
+          query: 'ideas proyecto',
+          projectName: 'Satélite Cubesat',
+        );
+
+        final result = await dispatcher.dispatch(action);
+
+        expect(result.success, isTrue);
+        expect(result.userMessage, contains('vinculada al proyecto "Satélite Cubesat"'));
+        expect(noteRepo.lastUpdatedNote?.projectId, 'proj-77');
       });
 
       test('archiva una nota existente', () async {

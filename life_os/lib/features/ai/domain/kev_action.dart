@@ -144,12 +144,14 @@ class CreateNoteAction extends KevAction {
   final String content;
   final List<String> tags;
   final bool isPinned;
+  final String? projectName;
 
   const CreateNoteAction({
     required this.title,
     this.content = '',
     this.tags = const [],
     this.isPinned = false,
+    this.projectName,
   });
 
   @override
@@ -164,6 +166,7 @@ class CreateNoteAction extends KevAction {
         'content': content,
         'tags': tags,
         'is_pinned': isPinned,
+        'project_name': ?projectName,
       },
     };
   }
@@ -200,6 +203,7 @@ class CreateNoteAction extends KevAction {
       content: content,
       tags: parsedTags,
       isPinned: isPinned,
+      projectName: map['project_name']?.toString().trim(),
     );
   }
 }
@@ -494,6 +498,7 @@ class UpdateTaskAction extends KevAction {
   final DateTime? dueDate;
   final String? newTitle;
   final String? notes;
+  final String? projectName;
 
   const UpdateTaskAction({
     required this.query,
@@ -502,6 +507,7 @@ class UpdateTaskAction extends KevAction {
     this.dueDate,
     this.newTitle,
     this.notes,
+    this.projectName,
   });
 
   @override
@@ -518,6 +524,7 @@ class UpdateTaskAction extends KevAction {
         if (dueDate != null) 'due_date': dueDate!.toIso8601String(),
         if (newTitle != null) 'new_title': newTitle,
         if (notes != null) 'notes': notes,
+        if (projectName != null) 'project_name': projectName,
       },
     };
   }
@@ -558,6 +565,7 @@ class UpdateTaskAction extends KevAction {
       dueDate: dueDate,
       newTitle: map['new_title']?.toString().trim(),
       notes: map['notes']?.toString().trim(),
+      projectName: map['project_name']?.toString().trim(),
     );
   }
 }
@@ -594,6 +602,7 @@ class UpdateNoteAction extends KevAction {
   final bool? isArchived;
   final String? newTitle;
   final String? appendContent;
+  final String? projectName;
 
   const UpdateNoteAction({
     required this.query,
@@ -601,6 +610,7 @@ class UpdateNoteAction extends KevAction {
     this.isArchived,
     this.newTitle,
     this.appendContent,
+    this.projectName,
   });
 
   @override
@@ -616,6 +626,7 @@ class UpdateNoteAction extends KevAction {
         if (isArchived != null) 'is_archived': isArchived,
         if (newTitle != null) 'new_title': newTitle,
         if (appendContent != null) 'append_content': appendContent,
+        if (projectName != null) 'project_name': projectName,
       },
     };
   }
@@ -645,6 +656,7 @@ class UpdateNoteAction extends KevAction {
       isArchived: isArchived,
       newTitle: map['new_title']?.toString().trim(),
       appendContent: map['append_content']?.toString().trim(),
+      projectName: map['project_name']?.toString().trim(),
     );
   }
 }

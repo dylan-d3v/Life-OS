@@ -134,21 +134,22 @@ class KevActionDispatcher {
 
   Future<KevExecutionResult> _handleCreateTask(CreateTaskAction action) async {
     String? projectId;
+    String? resolvedProjectName;
 
     // Si la acción especifica nombre de proyecto, intentamos resolver el ID
     if (action.projectName != null && action.projectName!.isNotEmpty) {
       try {
         final projects = await projectRepository.fetchProjects();
-        final match = projects.where(
-          (p) => p.name.toLowerCase() == action.projectName!.toLowerCase(),
-        ).firstOrNull ?? projects.where(
-          (p) => p.name.toLowerCase().contains(action.projectName!.toLowerCase()),
-        ).firstOrNull;
+        final match = LocalEntityResolver.findBestMatch<ProjectItem>(
+          query: action.projectName!,
+          items: projects,
+          titleExtractor: (p) => p.name,
+        );
         if (match != null && match.id.isNotEmpty) {
           projectId = match.id;
+          resolvedProjectName = match.name;
         }
       } catch (_) {
-        // Si no se puede resolver el proyecto, continuamos sin asociarlo
         projectId = null;
       }
     }
@@ -164,9 +165,11 @@ class KevActionDispatcher {
     final duePart = action.dueDate != null
         ? ' para el ${DateFormat('dd/MM/yyyy').format(action.dueDate!)}'
         : '';
+    final projectPart =
+        resolvedProjectName != null ? ' en el proyecto "$resolvedProjectName"' : '';
 
     return KevExecutionResult.success(
-      userMessage: 'Tarea agregada: "${task.title}"$duePart.',
+      userMessage: 'Tarea agregada: "${task.title}"$duePart$projectPart.',
       actionType: action.actionName,
       entityId: task.id,
       createdItem: task,
@@ -174,18 +177,42 @@ class KevActionDispatcher {
   }
 
   Future<KevExecutionResult> _handleCreateNote(CreateNoteAction action) async {
+    String? projectId;
+    String? resolvedProjectName;
+
+    // Si la acción especifica nombre de proyecto, intentamos resolver el ID
+    if (action.projectName != null && action.projectName!.isNotEmpty) {
+      try {
+        final projects = await projectRepository.fetchProjects();
+        final match = LocalEntityResolver.findBestMatch<ProjectItem>(
+          query: action.projectName!,
+          items: projects,
+          titleExtractor: (p) => p.name,
+        );
+        if (match != null && match.id.isNotEmpty) {
+          projectId = match.id;
+          resolvedProjectName = match.name;
+        }
+      } catch (_) {
+        projectId = null;
+      }
+    }
+
     final note = await noteRepository.createNote(
       title: action.title,
       content: action.content,
       tags: action.tags,
       isPinned: action.isPinned,
+      projectId: projectId,
     );
 
     final tagPart =
         action.tags.isNotEmpty ? ' con etiquetas [${action.tags.join(', ')}]' : '';
+    final projectPart =
+        resolvedProjectName != null ? ' en el proyecto "$resolvedProjectName"' : '';
 
     return KevExecutionResult.success(
-      userMessage: 'Nota guardada: "${note.title}"$tagPart.',
+      userMessage: 'Nota guardada: "${note.title}"$tagPart$projectPart.',
       actionType: action.actionName,
       entityId: note.id,
       createdItem: note,
@@ -340,12 +367,30 @@ class KevActionDispatcher {
         ? (action.isCompleted! ? TaskStatus.done : TaskStatus.todo)
         : match.status;
 
+    String? newProjectId = match.projectId;
+    String? resolvedProjectName;
+    if (action.projectName != null && action.projectName!.isNotEmpty) {
+      try {
+        final projects = await projectRepository.fetchProjects();
+        final pMatch = LocalEntityResolver.findBestMatch<ProjectItem>(
+          query: action.projectName!,
+          items: projects,
+          titleExtractor: (p) => p.name,
+        );
+        if (pMatch != null) {
+          newProjectId = pMatch.id;
+          resolvedProjectName = pMatch.name;
+        }
+      } catch (_) {}
+    }
+
     final updatedTask = match.copyWith(
       title: action.newTitle ?? match.title,
       notes: action.notes ?? match.notes,
       priority: action.priority ?? match.priority,
       dueDate: action.dueDate ?? match.dueDate,
       status: newStatus,
+      projectId: newProjectId,
       updatedAt: DateTime.now(),
     );
 
@@ -364,6 +409,9 @@ class KevActionDispatcher {
           'Tarea "${match.title}" reprogramada para el ${DateFormat('dd/MM/yyyy').format(action.dueDate!)}.';
     } else if (action.newTitle != null) {
       message = 'Tarea "${match.title}" renombrada a "${action.newTitle}".';
+    } else if (resolvedProjectName != null) {
+      message =
+          'Tarea "${match.title}" vinculada al proyecto "$resolvedProjectName".';
     } else {
       message = 'Tarea "${match.title}" actualizada exitosamente.';
     }
@@ -433,10 +481,28 @@ class KevActionDispatcher {
                 : '${match.content}\n${action.appendContent!}')
             : match.content;
 
+    String? newProjectId = match.projectId;
+    String? resolvedProjectName;
+    if (action.projectName != null && action.projectName!.isNotEmpty) {
+      try {
+        final projects = await projectRepository.fetchProjects();
+        final pMatch = LocalEntityResolver.findBestMatch<ProjectItem>(
+          query: action.projectName!,
+          items: projects,
+          titleExtractor: (p) => p.name,
+        );
+        if (pMatch != null) {
+          newProjectId = pMatch.id;
+          resolvedProjectName = pMatch.name;
+        }
+      } catch (_) {}
+    }
+
     final updatedNote = match.copyWith(
       title: action.newTitle ?? match.title,
       content: newContent,
       isPinned: action.isPinned ?? match.isPinned,
+      projectId: newProjectId,
       updatedAt: DateTime.now(),
     );
 
@@ -452,6 +518,9 @@ class KevActionDispatcher {
       message = 'Contenido agregado a la nota "${match.title}".';
     } else if (action.newTitle != null) {
       message = 'Nota "${match.title}" renombrada a "${action.newTitle}".';
+    } else if (resolvedProjectName != null) {
+      message =
+          'Nota "${match.title}" vinculada al proyecto "$resolvedProjectName".';
     } else {
       message = 'Nota "${match.title}" actualizada exitosamente.';
     }

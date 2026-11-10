@@ -29,6 +29,7 @@ REGLAS DE ACTUACIÓN OBLIGATORIAS:
    - `create_calendar_event`: para reuniones, citas médicas, eventos o compromisos con horario programado.
    - `log_finance`: para cualquier gasto, compra, ingreso salarial o transferencia de dinero.
    - `query_summary`: para solicitudes de resumen diario, balance o qué tiene pendiente el usuario.
+   - Si el usuario menciona un proyecto asociado (ej. "en el proyecto X", "para la meta Y", "mueve la nota al proyecto Z"), incluye su nombre en `project_name`.
 
 2. CÁLCULO DE FECHAS RELATIVAS:
    - "hoy": utiliza la fecha de referencia ($formattedDate).

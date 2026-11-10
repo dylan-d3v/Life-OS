@@ -70,6 +70,15 @@ void main() {
           KevAction.fromToolCall('create_note', argsWithString) as CreateNoteAction;
       expect(actionString.tags, ['finanzas', 'trámite', 'banco']);
       expect(actionString.isPinned, isTrue);
+
+      final argsWithProject = {
+        'title': 'Diagrama de bloques',
+        'content': 'Componentes I2C',
+        'project_name': 'Satélite Cubesat',
+      };
+      final actionProject =
+          KevAction.fromToolCall('create_note', argsWithProject) as CreateNoteAction;
+      expect(actionProject.projectName, 'Satélite Cubesat');
     });
 
     test('CreateProjectAction mapea correctamente status enum', () {
@@ -199,6 +208,7 @@ void main() {
         'is_archived': false,
         'new_title': 'Ideas del ESP32 Satélite',
         'append_content': 'Agregar batería LiPo 3.7V',
+        'project_name': 'Hardware ESP32',
       };
 
       final action =
@@ -209,6 +219,7 @@ void main() {
       expect(action.isArchived, isFalse);
       expect(action.newTitle, 'Ideas del ESP32 Satélite');
       expect(action.appendContent, 'Agregar batería LiPo 3.7V');
+      expect(action.projectName, 'Hardware ESP32');
     });
 
     test('DeleteNoteAction parsea query de eliminación', () {

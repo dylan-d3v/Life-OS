@@ -89,6 +89,10 @@ class KevToolDefinitions {
             'type': 'boolean',
             'description': 'Si la nota debe fijarse al inicio por ser de alta relevancia.',
           },
+          'project_name': {
+            'type': 'string',
+            'description': 'Nombre del proyecto al que se asocia la nota si se menciona.',
+          },
         },
         'required': ['title'],
       },
@@ -277,6 +281,11 @@ class KevToolDefinitions {
             'type': 'string',
             'description': 'Nuevos detalles o notas adicionales.',
           },
+          'project_name': {
+            'type': 'string',
+            'description':
+                'Nuevo nombre de proyecto si se desea asociar o mover la tarea a otro proyecto.',
+          },
         },
         'required': ['query'],
       },
@@ -333,6 +342,11 @@ class KevToolDefinitions {
           'append_content': {
             'type': 'string',
             'description': 'Texto a anexar al final del contenido existente.',
+          },
+          'project_name': {
+            'type': 'string',
+            'description':
+                'Nombre del proyecto al que se desea vincular o mover la nota.',
           },
         },
         'required': ['query'],
