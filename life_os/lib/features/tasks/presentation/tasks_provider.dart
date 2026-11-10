@@ -37,6 +37,21 @@ class TaskFilterNotifier extends Notifier<TaskFilter> {
 final taskFilterProvider =
     NotifierProvider<TaskFilterNotifier, TaskFilter>(TaskFilterNotifier.new);
 
+/// Notifier para el filtro por proyecto asociado (null = todos los proyectos).
+class TaskProjectFilterNotifier extends Notifier<String?> {
+  @override
+  String? build() => null;
+
+  void setProject(String? projectId) {
+    state = projectId;
+  }
+}
+
+final taskProjectFilterProvider =
+    NotifierProvider<TaskProjectFilterNotifier, String?>(
+  TaskProjectFilterNotifier.new,
+);
+
 // =============================================================================
 // Lista de tareas
 // =============================================================================
@@ -132,21 +147,34 @@ final taskListProvider =
 /// Proveedor derivado que aplica el filtro activo a la lista de tareas.
 final filteredTasksProvider = Provider<AsyncValue<List<TaskItem>>>((ref) {
   final filter = ref.watch(taskFilterProvider);
+  final projectFilter = ref.watch(taskProjectFilterProvider);
   final tasksAsync = ref.watch(taskListProvider);
 
   return tasksAsync.whenData((tasks) {
+    var result = tasks;
+
+    // 1. Filtro por estado
     switch (filter) {
       case TaskFilter.all:
-        return tasks;
+        break;
       case TaskFilter.pending:
-        return tasks
+        result = result
             .where((t) =>
                 t.status == TaskStatus.todo ||
                 t.status == TaskStatus.inProgress)
             .toList();
+        break;
       case TaskFilter.done:
-        return tasks.where((t) => t.status == TaskStatus.done).toList();
+        result = result.where((t) => t.status == TaskStatus.done).toList();
+        break;
     }
+
+    // 2. Filtro por proyecto
+    if (projectFilter != null) {
+      result = result.where((t) => t.projectId == projectFilter).toList();
+    }
+
+    return result;
   });
 });
 

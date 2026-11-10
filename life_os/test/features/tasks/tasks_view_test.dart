@@ -287,4 +287,72 @@ void main() {
     expect(find.text('Satélite Cubesat'), findsOneWidget);
     expect(find.byIcon(Icons.folder_outlined), findsOneWidget);
   });
+
+  testWidgets('TasksView permite filtrar tareas por proyecto seleccionado',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1280, 800));
+
+    final projA = ProjectItem(
+      id: 'proj-a',
+      name: 'Proyecto Alpha',
+      colorHex: '#3B82F6',
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+    final projB = ProjectItem(
+      id: 'proj-b',
+      name: 'Proyecto Beta',
+      colorHex: '#10B981',
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+
+    final taskA = TaskItem(
+      id: 'task-1',
+      title: 'Tarea del proyecto Alpha',
+      status: TaskStatus.todo,
+      projectId: 'proj-a',
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+    final taskB = TaskItem(
+      id: 'task-2',
+      title: 'Tarea del proyecto Beta',
+      status: TaskStatus.todo,
+      projectId: 'proj-b',
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          taskListProvider
+              .overrideWith(() => MockTaskListNotifier([taskA, taskB])),
+          projectListProvider
+              .overrideWith(() => MockProjectListNotifier([projA, projB])),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(body: TasksView()),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    // Inicialmente ambas tareas visibles
+    expect(find.text('Tarea del proyecto Alpha'), findsOneWidget);
+    expect(find.text('Tarea del proyecto Beta'), findsOneWidget);
+
+    // Abrir dropdown y seleccionar "Proyecto Alpha"
+    await tester.tap(find.text('Todos los proyectos'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Proyecto Alpha').last);
+    await tester.pumpAndSettle();
+
+    // Solo la tarea de Alpha debe ser visible
+    expect(find.text('Tarea del proyecto Alpha'), findsOneWidget);
+    expect(find.text('Tarea del proyecto Beta'), findsNothing);
+  });
 }

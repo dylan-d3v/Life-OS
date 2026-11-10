@@ -17,6 +17,7 @@ class TasksView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final filteredTasks = ref.watch(filteredTasksProvider);
     final activeFilter = ref.watch(taskFilterProvider);
+    final selectedProjectFilter = ref.watch(taskProjectFilterProvider);
 
     return Container(
       padding: const EdgeInsets.all(28),
@@ -100,6 +101,8 @@ class TasksView extends ConsumerWidget {
                     .read(taskFilterProvider.notifier)
                     .setFilter(TaskFilter.done),
               ),
+              const SizedBox(width: 12),
+              const _TaskProjectFilterDropdown(),
               const Spacer(),
               IconButton(
                 icon: const Icon(Icons.refresh, color: Color(0xFF94A3B8)),
@@ -149,7 +152,10 @@ class TasksView extends ConsumerWidget {
               ),
               data: (tasks) {
                 if (tasks.isEmpty) {
-                  return _buildEmptyState(activeFilter);
+                  return _buildEmptyState(
+                    activeFilter,
+                    hasProjectFilter: selectedProjectFilter != null,
+                  );
                 }
                 return ListView.separated(
                   itemCount: tasks.length,
@@ -168,12 +174,17 @@ class TasksView extends ConsumerWidget {
     );
   }
 
-  Widget _buildEmptyState(TaskFilter filter) {
-    final message = switch (filter) {
-      TaskFilter.all => 'No tienes tareas aún.\nCrea tu primera tarea cifrada.',
-      TaskFilter.pending => 'No hay tareas pendientes.\n¡Buen trabajo!',
-      TaskFilter.done => 'No hay tareas completadas aún.',
-    };
+  Widget _buildEmptyState(TaskFilter filter, {bool hasProjectFilter = false}) {
+    final String message;
+    if (hasProjectFilter) {
+      message = 'No hay tareas asociadas al proyecto seleccionado.';
+    } else {
+      message = switch (filter) {
+        TaskFilter.all => 'No tienes tareas aún.\nCrea tu primera tarea cifrada.',
+        TaskFilter.pending => 'No hay tareas pendientes.\n¡Buen trabajo!',
+        TaskFilter.done => 'No hay tareas completadas aún.',
+      };
+    }
 
     return Center(
       child: Container(
@@ -253,6 +264,109 @@ class _FilterChip extends StatelessWidget {
             fontSize: 13,
             fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
           ),
+        ),
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// Widget: Dropdown de filtro por proyecto
+// =============================================================================
+
+class _TaskProjectFilterDropdown extends ConsumerWidget {
+  const _TaskProjectFilterDropdown();
+
+  Color _parseColor(String hex) {
+    try {
+      final clean = hex.replaceAll('#', '');
+      return Color(int.parse('0xFF$clean'));
+    } catch (_) {
+      return const Color(0xFF0284C7);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final selectedProjectId = ref.watch(taskProjectFilterProvider);
+    final projectsAsync = ref.watch(projectListProvider);
+    final projects = projectsAsync.value ?? [];
+
+    if (projects.isEmpty) return const SizedBox.shrink();
+
+    final hasValidSelected = selectedProjectId == null ||
+        projects.any((p) => p.id == selectedProjectId);
+    final currentProjectId = hasValidSelected ? selectedProjectId : null;
+
+    return Container(
+      height: 36,
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E293B),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: currentProjectId != null
+              ? const Color(0xFF0284C7)
+              : const Color(0xFF334155),
+        ),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String?>(
+          value: currentProjectId,
+          dropdownColor: const Color(0xFF1E293B),
+          style: const TextStyle(color: Colors.white, fontSize: 13),
+          icon: const Icon(Icons.arrow_drop_down,
+              color: Color(0xFF94A3B8), size: 18),
+          borderRadius: BorderRadius.circular(10),
+          isDense: true,
+          items: [
+            const DropdownMenuItem<String?>(
+              value: null,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.folder_open_outlined,
+                      size: 14, color: Color(0xFF94A3B8)),
+                  SizedBox(width: 6),
+                  Text('Todos los proyectos',
+                      style:
+                          TextStyle(color: Color(0xFF94A3B8), fontSize: 13)),
+                ],
+              ),
+            ),
+            ...projects.map((p) {
+              final color = _parseColor(p.colorHex);
+              return DropdownMenuItem<String?>(
+                value: p.id,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: color,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 150),
+                      child: Text(
+                        p.name,
+                        style:
+                            const TextStyle(color: Colors.white, fontSize: 13),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ],
+          onChanged: (val) {
+            ref.read(taskProjectFilterProvider.notifier).setProject(val);
+          },
         ),
       ),
     );

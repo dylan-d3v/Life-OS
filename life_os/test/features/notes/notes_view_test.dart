@@ -210,5 +210,73 @@ void main() {
     expect(find.text('Life-OS Mobile'), findsWidgets);
     expect(find.text('Guardar Cambios'), findsOneWidget);
   });
+
+  testWidgets('NotesView permite filtrar notas por proyecto seleccionado',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1280, 800));
+
+    final projA = ProjectItem(
+      id: 'proj-a',
+      name: 'Proyecto Alpha',
+      colorHex: '#3B82F6',
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+    final projB = ProjectItem(
+      id: 'proj-b',
+      name: 'Proyecto Beta',
+      colorHex: '#10B981',
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+
+    final noteA = NoteItem(
+      id: 'note-1',
+      title: 'Nota de Alpha',
+      content: 'Contenido Alpha',
+      projectId: 'proj-a',
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+    final noteB = NoteItem(
+      id: 'note-2',
+      title: 'Nota de Beta',
+      content: 'Contenido Beta',
+      projectId: 'proj-b',
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          noteListProvider
+              .overrideWith(() => MockNoteListNotifier([noteA, noteB])),
+          projectListProvider
+              .overrideWith(() => MockProjectListNotifier([projA, projB])),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(body: NotesView()),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    // Inicialmente ambas notas visibles
+    expect(find.text('Nota de Alpha'), findsOneWidget);
+    expect(find.text('Nota de Beta'), findsOneWidget);
+
+    // Abrir dropdown y seleccionar "Proyecto Alpha"
+    await tester.tap(find.text('Todos los proyectos'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Proyecto Alpha').last);
+    await tester.pumpAndSettle();
+
+    // Solo la nota de Alpha debe ser visible
+    expect(find.text('Nota de Alpha'), findsOneWidget);
+    expect(find.text('Nota de Beta'), findsNothing);
+  });
 }
 

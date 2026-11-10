@@ -48,6 +48,21 @@ final noteSearchQueryProvider =
   NoteSearchQueryNotifier.new,
 );
 
+/// Notifier para el filtro por proyecto asociado en notas (null = todos los proyectos).
+class NoteProjectFilterNotifier extends Notifier<String?> {
+  @override
+  String? build() => null;
+
+  void setProject(String? projectId) {
+    state = projectId;
+  }
+}
+
+final noteProjectFilterProvider =
+    NotifierProvider<NoteProjectFilterNotifier, String?>(
+  NoteProjectFilterNotifier.new,
+);
+
 // =============================================================================
 // Lista de Notas
 // =============================================================================
@@ -137,9 +152,10 @@ final noteListProvider =
   NoteListNotifier.new,
 );
 
-/// Proveedor que filtra las notas por pestaña y término de búsqueda (en memoria descifrada).
+/// Proveedor que filtra las notas por pestaña, proyecto asociado y término de búsqueda (en memoria descifrada).
 final filteredNotesProvider = Provider<AsyncValue<List<NoteItem>>>((ref) {
   final filter = ref.watch(noteFilterProvider);
+  final projectFilter = ref.watch(noteProjectFilterProvider);
   final query = ref.watch(noteSearchQueryProvider).trim().toLowerCase();
   final notesAsync = ref.watch(noteListProvider);
 
@@ -148,6 +164,10 @@ final filteredNotesProvider = Provider<AsyncValue<List<NoteItem>>>((ref) {
 
     if (filter == NoteFilter.pinned) {
       result = result.where((n) => n.isPinned).toList();
+    }
+
+    if (projectFilter != null) {
+      result = result.where((n) => n.projectId == projectFilter).toList();
     }
 
     if (query.isNotEmpty) {
