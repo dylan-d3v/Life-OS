@@ -385,12 +385,15 @@ class _CalendarEventDialogState extends ConsumerState<CalendarEventDialog> {
                                 const Icon(Icons.calendar_today_outlined,
                                     size: 15, color: CalendarTheme.textSecondary),
                                 const SizedBox(width: 8),
-                                Text(
-                                  CalendarTheme.formatFullDateWithWeekday(
-                                      _selectedDate),
-                                  style: const TextStyle(
-                                      color: CalendarTheme.textPrimary,
-                                      fontSize: 12),
+                                Expanded(
+                                  child: Text(
+                                    CalendarTheme.formatFullDateWithWeekday(
+                                        _selectedDate),
+                                    style: const TextStyle(
+                                        color: CalendarTheme.textPrimary,
+                                        fontSize: 12),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
                               ],
                             ),

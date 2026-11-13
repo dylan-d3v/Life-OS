@@ -1,195 +1,207 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import '../../ai/presentation/widgets/daily_briefing_card.dart';
 import '../../projects/domain/project_item.dart';
 import '../../projects/presentation/projects_provider.dart';
 import '../domain/task_item.dart';
 import 'tasks_provider.dart';
+import 'widgets/task_side_panel.dart';
+import 'widgets/task_summary_cards.dart';
 
-/// Vista principal del Gestor de Tareas con cifrado E2EE.
-/// Muestra la lista de tareas descifradas, filtros rápidos y
-/// permite crear, completar y eliminar tareas.
+/// Vista principal del Gestor de Tareas rediseñado como un **Task Workspace**.
+///
+/// Dispone de:
+/// 1. Encabezado compacto (~70-90px) con botón de acción destacado.
+/// 2. Tarjetas métricas de resumen interactivas (Pendientes, Completadas, Vencen hoy, Atrasadas).
+/// 3. Barra compacta de filtros y búsqueda integrada.
+/// 4. Lista de tareas enriquecida con soporte de selección, doble clic de edición y badges.
+/// 5. Panel lateral derecho inteligente (Briefing Diario por defecto o Detalle de tarea seleccionada).
 class TasksView extends ConsumerWidget {
   const TasksView({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final filteredTasks = ref.watch(filteredTasksProvider);
-    final activeFilter = ref.watch(taskFilterProvider);
-    final selectedProjectFilter = ref.watch(taskProjectFilterProvider);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // En pantallas grandes (>= 920px) desplegamos el panel lateral dinámico
+        final showSidePanel = constraints.maxWidth >= 920;
 
-    return Container(
-      padding: const EdgeInsets.all(28),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // ── Encabezado ──
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Flexible(
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // ── Área Principal de Tareas ──
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Gestor de Tareas',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      'Tareas cifradas de extremo a extremo con AES-256-GCM',
-                      style: TextStyle(
-                        color: Color(0xFF94A3B8),
-                        fontSize: 14,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 16),
-              ElevatedButton.icon(
-                onPressed: () => _openTaskDialog(context, ref),
-                icon: const Icon(Icons.add, size: 18),
-                label: const Text('Nueva Tarea'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF0284C7),
-                  foregroundColor: Colors.white,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
+                    // 1. Header Compacto
+                    _buildCompactHeader(context, ref),
+                    const SizedBox(height: 14),
 
-          // ── Briefing Inteligente de Kev ──
-          const DailyBriefingCard(),
+                    // 2. Tarjetas de Resumen
+                    const TaskSummaryCards(),
+                    const SizedBox(height: 14),
 
-          // ── Filtros rápidos ──
-          Row(
-            children: [
-              _FilterChip(
-                label: 'Todas',
-                selected: activeFilter == TaskFilter.all,
-                onTap: () => ref
-                    .read(taskFilterProvider.notifier)
-                    .setFilter(TaskFilter.all),
-              ),
-              const SizedBox(width: 8),
-              _FilterChip(
-                label: 'Pendientes',
-                selected: activeFilter == TaskFilter.pending,
-                onTap: () => ref
-                    .read(taskFilterProvider.notifier)
-                    .setFilter(TaskFilter.pending),
-              ),
-              const SizedBox(width: 8),
-              _FilterChip(
-                label: 'Completadas',
-                selected: activeFilter == TaskFilter.done,
-                onTap: () => ref
-                    .read(taskFilterProvider.notifier)
-                    .setFilter(TaskFilter.done),
-              ),
-              const SizedBox(width: 12),
-              const _TaskProjectFilterDropdown(),
-              const Spacer(),
-              IconButton(
-                icon: const Icon(Icons.refresh, color: Color(0xFF94A3B8)),
-                tooltip: 'Recargar tareas',
-                onPressed: () => ref.read(taskListProvider.notifier).refresh(),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-          // ── Lista de tareas ──
-          Expanded(
-            child: filteredTasks.when(
-              loading: () => const Center(
-                child: CircularProgressIndicator(
-                  color: Color(0xFF38BDF8),
-                ),
-              ),
-              error: (error, stack) => Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.error_outline,
-                        size: 48, color: Color(0xFFEF4444)),
+                    // 3. Barra de Búsqueda y Filtros
+                    const _TaskFilterAndSearchBar(),
                     const SizedBox(height: 12),
-                    Text(
-                      'Error al cargar tareas',
-                      style: const TextStyle(
-                          color: Colors.white, fontWeight: FontWeight.w600),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      error.toString(),
-                      style: const TextStyle(
-                          color: Color(0xFF94A3B8), fontSize: 12),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 16),
-                    TextButton.icon(
-                      onPressed: () =>
-                          ref.read(taskListProvider.notifier).refresh(),
-                      icon: const Icon(Icons.refresh),
-                      label: const Text('Reintentar'),
+
+                    // 4. Lista de Tareas
+                    Expanded(
+                      child: _buildTaskList(ref),
                     ),
                   ],
                 ),
               ),
-              data: (tasks) {
-                if (tasks.isEmpty) {
-                  return _buildEmptyState(
-                    activeFilter,
-                    hasProjectFilter: selectedProjectFilter != null,
-                  );
-                }
-                return ListView.separated(
-                  itemCount: tasks.length,
-                  separatorBuilder: (context, index) =>
-                      const SizedBox(height: 8),
-                  itemBuilder: (context, index) {
-                    final task = tasks[index];
-                    return _TaskCard(task: task);
-                  },
-                );
-              },
             ),
-          ),
-        ],
-      ),
+
+            // ── Panel Lateral Derecho Inteligente (Briefing / Detalle) ──
+            if (showSidePanel)
+              TaskSidePanel(
+                onEditTask: (task) => _openTaskDialog(context, ref, task: task),
+              ),
+          ],
+        );
+      },
     );
   }
 
-  Widget _buildEmptyState(TaskFilter filter, {bool hasProjectFilter = false}) {
+  // ===========================================================================
+  // Header Compacto
+  // ===========================================================================
+  Widget _buildCompactHeader(BuildContext context, WidgetRef ref) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        const Flexible(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Gestor de Tareas',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+              SizedBox(height: 3),
+              Text(
+                'Organiza, prioriza y cumple tus tareas',
+                style: TextStyle(
+                  color: Color(0xFF94A3B8),
+                  fontSize: 13,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 16),
+        ElevatedButton.icon(
+          onPressed: () => _openTaskDialog(context, ref),
+          icon: const Icon(Icons.add, size: 18),
+          label: const Text('Nueva Tarea'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF0284C7),
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ===========================================================================
+  // Lista de Tareas con Estados (Loading, Error, Empty, Data)
+  // ===========================================================================
+  Widget _buildTaskList(WidgetRef ref) {
+    final filteredTasks = ref.watch(filteredTasksProvider);
+    final activeFilter = ref.watch(taskFilterProvider);
+    final selectedProjectFilter = ref.watch(taskProjectFilterProvider);
+    final searchQuery = ref.watch(taskSearchQueryProvider);
+
+    return filteredTasks.when(
+      loading: () => const Center(
+        child: CircularProgressIndicator(color: Color(0xFF38BDF8)),
+      ),
+      error: (error, stack) => Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.error_outline, size: 44, color: Color(0xFFEF4444)),
+            const SizedBox(height: 10),
+            const Text(
+              'Error al cargar tareas',
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              error.toString(),
+              style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 12),
+            TextButton.icon(
+              onPressed: () => ref.read(taskListProvider.notifier).refresh(),
+              icon: const Icon(Icons.refresh),
+              label: const Text('Reintentar'),
+            ),
+          ],
+        ),
+      ),
+      data: (tasks) {
+        if (tasks.isEmpty) {
+          return _buildEmptyState(
+            activeFilter,
+            hasProjectFilter: selectedProjectFilter != null,
+            hasSearchQuery: searchQuery.isNotEmpty,
+          );
+        }
+        return ListView.separated(
+          itemCount: tasks.length,
+          separatorBuilder: (context, index) => const SizedBox(height: 8),
+          itemBuilder: (context, index) {
+            final task = tasks[index];
+            return _TaskCard(task: task);
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildEmptyState(
+    TaskFilter filter, {
+    bool hasProjectFilter = false,
+    bool hasSearchQuery = false,
+  }) {
     final String message;
-    if (hasProjectFilter) {
+    if (hasSearchQuery) {
+      message = 'No se encontraron tareas que coincidan con tu búsqueda.';
+    } else if (hasProjectFilter) {
       message = 'No hay tareas asociadas al proyecto seleccionado.';
     } else {
       message = switch (filter) {
         TaskFilter.all => 'No tienes tareas aún.\nCrea tu primera tarea cifrada.',
         TaskFilter.pending => 'No hay tareas pendientes.\n¡Buen trabajo!',
         TaskFilter.done => 'No hay tareas completadas aún.',
+        TaskFilter.today => 'No tienes tareas con vencimiento programado para hoy.',
+        TaskFilter.overdue => 'No tienes tareas atrasadas pendientes.',
       };
     }
 
     return Center(
       child: Container(
-        constraints: const BoxConstraints(maxWidth: 400),
-        padding: const EdgeInsets.all(32),
+        constraints: const BoxConstraints(maxWidth: 380),
+        padding: const EdgeInsets.all(28),
         decoration: BoxDecoration(
           color: const Color(0xFF1E293B),
           borderRadius: BorderRadius.circular(12),
@@ -200,16 +212,16 @@ class TasksView extends ConsumerWidget {
           children: [
             const Icon(
               Icons.checklist_rounded,
-              size: 56,
+              size: 48,
               color: Color(0xFF38BDF8),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 14),
             Text(
               message,
               textAlign: TextAlign.center,
               style: const TextStyle(
                 color: Color(0xFF94A3B8),
-                fontSize: 15,
+                fontSize: 14,
               ),
             ),
           ],
@@ -225,6 +237,151 @@ void _openTaskDialog(BuildContext context, WidgetRef ref, {TaskItem? task}) {
     context: context,
     builder: (ctx) => _TaskEditorDialog(ref: ref, initialTask: task),
   );
+}
+
+// =============================================================================
+// Widget: Barra Integrada de Búsqueda y Filtros
+// =============================================================================
+
+class _TaskFilterAndSearchBar extends ConsumerStatefulWidget {
+  const _TaskFilterAndSearchBar();
+
+  @override
+  ConsumerState<_TaskFilterAndSearchBar> createState() =>
+      _TaskFilterAndSearchBarState();
+}
+
+class _TaskFilterAndSearchBarState extends ConsumerState<_TaskFilterAndSearchBar> {
+  late final TextEditingController _searchCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchCtrl = TextEditingController(
+      text: ref.read(taskSearchQueryProvider),
+    );
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final activeFilter = ref.watch(taskFilterProvider);
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isCompact = constraints.maxWidth < 650;
+
+        final searchField = SizedBox(
+          width: isCompact ? double.infinity : 240,
+          height: 36,
+          child: TextField(
+            controller: _searchCtrl,
+            onChanged: (val) {
+              ref.read(taskSearchQueryProvider.notifier).setQuery(val);
+            },
+            style: const TextStyle(color: Colors.white, fontSize: 13),
+            decoration: InputDecoration(
+              hintText: 'Buscar tareas...',
+              hintStyle: const TextStyle(color: Color(0xFF64748B), fontSize: 13),
+              prefixIcon: const Icon(Icons.search, size: 16, color: Color(0xFF94A3B8)),
+              suffixIcon: _searchCtrl.text.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear, size: 14, color: Color(0xFF94A3B8)),
+                      onPressed: () {
+                        _searchCtrl.clear();
+                        ref.read(taskSearchQueryProvider.notifier).clear();
+                      },
+                      splashRadius: 14,
+                    )
+                  : null,
+              contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 10),
+              filled: true,
+              fillColor: const Color(0xFF1E293B),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(20),
+                borderSide: const BorderSide(color: Color(0xFF334155)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(20),
+                borderSide: const BorderSide(color: Color(0xFF334155)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(20),
+                borderSide: const BorderSide(color: Color(0xFF0284C7)),
+              ),
+            ),
+          ),
+        );
+
+        final chipsAndProject = Wrap(
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 6,
+          runSpacing: 6,
+          children: [
+            _FilterChip(
+              label: 'Todas',
+              selected: activeFilter == TaskFilter.all,
+              onTap: () => ref
+                  .read(taskFilterProvider.notifier)
+                  .setFilter(TaskFilter.all),
+            ),
+            _FilterChip(
+              label: 'Pendientes',
+              selected: activeFilter == TaskFilter.pending,
+              onTap: () => ref
+                  .read(taskFilterProvider.notifier)
+                  .setFilter(TaskFilter.pending),
+            ),
+            _FilterChip(
+              label: 'Completadas',
+              selected: activeFilter == TaskFilter.done,
+              onTap: () => ref
+                  .read(taskFilterProvider.notifier)
+                  .setFilter(TaskFilter.done),
+            ),
+            _FilterChip(
+              label: 'Atrasadas',
+              selected: activeFilter == TaskFilter.overdue,
+              onTap: () => ref
+                  .read(taskFilterProvider.notifier)
+                  .setFilter(TaskFilter.overdue),
+            ),
+            const _TaskProjectFilterDropdown(),
+            IconButton(
+              icon: const Icon(Icons.refresh, color: Color(0xFF94A3B8), size: 18),
+              tooltip: 'Recargar tareas',
+              splashRadius: 16,
+              onPressed: () => ref.read(taskListProvider.notifier).refresh(),
+            ),
+          ],
+        );
+
+        if (isCompact) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              searchField,
+              const SizedBox(height: 8),
+              chipsAndProject,
+            ],
+          );
+        }
+
+        return Row(
+          children: [
+            Expanded(child: chipsAndProject),
+            const SizedBox(width: 12),
+            searchField,
+          ],
+        );
+      },
+    );
+  }
 }
 
 // =============================================================================
@@ -247,21 +404,20 @@ class _FilterChip extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
         decoration: BoxDecoration(
           color: selected ? const Color(0xFF0284C7) : const Color(0xFF1E293B),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color:
-                selected ? const Color(0xFF0284C7) : const Color(0xFF334155),
+            color: selected ? const Color(0xFF0284C7) : const Color(0xFF334155),
           ),
         ),
         child: Text(
           label,
           style: TextStyle(
             color: selected ? Colors.white : const Color(0xFF94A3B8),
-            fontSize: 13,
+            fontSize: 12,
             fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
           ),
         ),
@@ -299,7 +455,7 @@ class _TaskProjectFilterDropdown extends ConsumerWidget {
     final currentProjectId = hasValidSelected ? selectedProjectId : null;
 
     return Container(
-      height: 36,
+      height: 32,
       padding: const EdgeInsets.symmetric(horizontal: 10),
       decoration: BoxDecoration(
         color: const Color(0xFF1E293B),
@@ -314,9 +470,9 @@ class _TaskProjectFilterDropdown extends ConsumerWidget {
         child: DropdownButton<String?>(
           value: currentProjectId,
           dropdownColor: const Color(0xFF1E293B),
-          style: const TextStyle(color: Colors.white, fontSize: 13),
+          style: const TextStyle(color: Colors.white, fontSize: 12),
           icon: const Icon(Icons.arrow_drop_down,
-              color: Color(0xFF94A3B8), size: 18),
+              color: Color(0xFF94A3B8), size: 16),
           borderRadius: BorderRadius.circular(10),
           isDense: true,
           items: [
@@ -326,11 +482,10 @@ class _TaskProjectFilterDropdown extends ConsumerWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(Icons.folder_open_outlined,
-                      size: 14, color: Color(0xFF94A3B8)),
+                      size: 13, color: Color(0xFF94A3B8)),
                   SizedBox(width: 6),
                   Text('Todos los proyectos',
-                      style:
-                          TextStyle(color: Color(0xFF94A3B8), fontSize: 13)),
+                      style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12)),
                 ],
               ),
             ),
@@ -351,11 +506,10 @@ class _TaskProjectFilterDropdown extends ConsumerWidget {
                     ),
                     const SizedBox(width: 6),
                     ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 150),
+                      constraints: const BoxConstraints(maxWidth: 140),
                       child: Text(
                         p.name,
-                        style:
-                            const TextStyle(color: Colors.white, fontSize: 13),
+                        style: const TextStyle(color: Colors.white, fontSize: 12),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
@@ -374,7 +528,7 @@ class _TaskProjectFilterDropdown extends ConsumerWidget {
 }
 
 // =============================================================================
-// Widget: Tarjeta de tarea
+// Widget: Tarjeta de tarea con selección interactiva y doble clic
 // =============================================================================
 
 class _TaskCard extends ConsumerWidget {
@@ -389,24 +543,43 @@ class _TaskCard extends ConsumerWidget {
     final projectMap = ref.watch(projectMapProvider);
     final project = task.projectId != null ? projectMap[task.projectId] : null;
 
+    final selectedTaskId = ref.watch(selectedTaskIdProvider);
+    final isSelected = selectedTaskId == task.id;
+
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF1E293B),
+        color: isSelected
+            ? const Color(0xFF1E3A5F).withValues(alpha: 0.5)
+            : const Color(0xFF1E293B),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
-          color: isDone
-              ? const Color(0xFF334155)
-              : const Color(0xFF334155).withValues(alpha: 0.8),
+          color: isSelected
+              ? const Color(0xFF38BDF8)
+              : (isDone
+                  ? const Color(0xFF334155).withValues(alpha: 0.6)
+                  : const Color(0xFF334155)),
+          width: isSelected ? 1.5 : 1,
         ),
+        boxShadow: isSelected
+            ? [
+                BoxShadow(
+                  color: const Color(0xFF38BDF8).withValues(alpha: 0.15),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ]
+            : null,
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(10),
-          onTap: () {},
+          onTap: () {
+            ref.read(selectedTaskIdProvider.notifier).select(task.id);
+          },
           onDoubleTap: () => _openTaskDialog(context, ref, task: task),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             child: Row(
               children: [
                 // Checkbox
@@ -414,13 +587,11 @@ class _TaskCard extends ConsumerWidget {
                   onTap: () =>
                       ref.read(taskListProvider.notifier).toggleStatus(task.id),
                   child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
+                    duration: const Duration(milliseconds: 180),
                     width: 22,
                     height: 22,
                     decoration: BoxDecoration(
-                      color: isDone
-                          ? const Color(0xFF22C55E)
-                          : Colors.transparent,
+                      color: isDone ? const Color(0xFF22C55E) : Colors.transparent,
                       border: Border.all(
                         color: isDone
                             ? const Color(0xFF22C55E)
@@ -430,25 +601,24 @@ class _TaskCard extends ConsumerWidget {
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: isDone
-                        ? const Icon(Icons.check,
-                            size: 14, color: Colors.white)
+                        ? const Icon(Icons.check, size: 14, color: Colors.white)
                         : null,
                   ),
                 ),
-                const SizedBox(width: 14),
+                const SizedBox(width: 12),
 
                 // Indicador de prioridad
                 Container(
-                  width: 4,
-                  height: 36,
+                  width: 3.5,
+                  height: 32,
                   decoration: BoxDecoration(
                     color: priorityColor,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
-                const SizedBox(width: 14),
+                const SizedBox(width: 12),
 
-                // Contenido
+                // Contenido (Título y notas)
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -456,10 +626,8 @@ class _TaskCard extends ConsumerWidget {
                       Text(
                         task.title,
                         style: TextStyle(
-                          color: isDone
-                              ? const Color(0xFF64748B)
-                              : Colors.white,
-                          fontSize: 15,
+                          color: isDone ? const Color(0xFF64748B) : Colors.white,
+                          fontSize: 14,
                           fontWeight: FontWeight.w500,
                           decoration: isDone
                               ? TextDecoration.lineThrough
@@ -495,7 +663,7 @@ class _TaskCard extends ConsumerWidget {
 
                 // Fecha de vencimiento
                 if (task.dueDate != null) ...[
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 10),
                   _DueDateBadge(dueDate: task.dueDate!),
                 ],
 
@@ -503,24 +671,24 @@ class _TaskCard extends ConsumerWidget {
                 const SizedBox(width: 8),
                 _PriorityBadge(priority: task.priority),
 
-                // Botón editar (o doble clic)
-                const SizedBox(width: 8),
+                // Botón editar
+                const SizedBox(width: 6),
                 IconButton(
                   icon: const Icon(Icons.edit_outlined,
-                      size: 18, color: Color(0xFF64748B)),
+                      size: 17, color: Color(0xFF64748B)),
                   tooltip: 'Editar tarea (doble clic)',
                   onPressed: () => _openTaskDialog(context, ref, task: task),
-                  splashRadius: 18,
+                  splashRadius: 16,
                 ),
 
                 // Botón eliminar
-                const SizedBox(width: 8),
+                const SizedBox(width: 4),
                 IconButton(
                   icon: const Icon(Icons.delete_outline,
-                      size: 18, color: Color(0xFF64748B)),
+                      size: 17, color: Color(0xFF64748B)),
                   tooltip: 'Eliminar tarea',
                   onPressed: () => _confirmDelete(context, ref),
-                  splashRadius: 18,
+                  splashRadius: 16,
                 ),
               ],
             ),
@@ -545,10 +713,9 @@ class _TaskCard extends ConsumerWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF1E293B),
-        title: const Text('Eliminar tarea',
-            style: TextStyle(color: Colors.white)),
+        title: const Text('Eliminar tarea', style: TextStyle(color: Colors.white)),
         content: Text(
-          '¿Eliminar "${task.title}"? Esta acción es reversible internamente.',
+          '¿Eliminar "${task.title}"? Esta acción se sincronizará con la nube cifrada.',
           style: const TextStyle(color: Color(0xFF94A3B8)),
         ),
         actions: [
@@ -561,8 +728,7 @@ class _TaskCard extends ConsumerWidget {
               ref.read(taskListProvider.notifier).deleteTask(task.id);
               Navigator.pop(ctx);
             },
-            child: const Text('Eliminar',
-                style: TextStyle(color: Color(0xFFEF4444))),
+            child: const Text('Eliminar', style: TextStyle(color: Color(0xFFEF4444))),
           ),
         ],
       ),
@@ -582,14 +748,14 @@ class _DueDateBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
-    final isOverdue = dueDate.isBefore(now);
     final isToday = dueDate.year == now.year &&
         dueDate.month == now.month &&
         dueDate.day == now.day;
+    final isOverdue = dueDate.isBefore(now) && !isToday;
 
     final Color bgColor;
     final Color textColor;
-    if (isOverdue && !isToday) {
+    if (isOverdue) {
       bgColor = const Color(0xFFEF4444).withValues(alpha: 0.15);
       textColor = const Color(0xFFEF4444);
     } else if (isToday) {
@@ -601,7 +767,7 @@ class _DueDateBadge extends StatelessWidget {
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(6),
@@ -609,10 +775,10 @@ class _DueDateBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.calendar_today, size: 12, color: textColor),
+          Icon(Icons.calendar_today, size: 11, color: textColor),
           const SizedBox(width: 4),
           Text(
-            DateFormat('dd/MM/yyyy').format(dueDate),
+            isToday ? 'Hoy' : DateFormat('dd/MM/yyyy').format(dueDate),
             style: TextStyle(color: textColor, fontSize: 11),
           ),
         ],
@@ -637,7 +803,7 @@ class _PriorityBadge extends StatelessWidget {
       2 => 'Media',
       3 => 'Alta',
       4 => 'Urgente',
-      _ => '?',
+      _ => 'Media',
     };
 
     final color = switch (priority) {
@@ -649,7 +815,7 @@ class _PriorityBadge extends StatelessWidget {
     };
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(6),
@@ -685,7 +851,7 @@ class _ProjectBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = _parseColor(project.colorHex);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(6),
@@ -694,10 +860,10 @@ class _ProjectBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.folder_outlined, size: 12, color: color),
+          Icon(Icons.folder_outlined, size: 11, color: color),
           const SizedBox(width: 4),
           ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 130),
+            constraints: const BoxConstraints(maxWidth: 120),
             child: Text(
               project.name,
               style: TextStyle(
@@ -744,10 +910,8 @@ class _TaskEditorDialogState extends ConsumerState<_TaskEditorDialog> {
   @override
   void initState() {
     super.initState();
-    _titleCtrl =
-        TextEditingController(text: widget.initialTask?.title ?? '');
-    _notesCtrl =
-        TextEditingController(text: widget.initialTask?.notes ?? '');
+    _titleCtrl = TextEditingController(text: widget.initialTask?.title ?? '');
+    _notesCtrl = TextEditingController(text: widget.initialTask?.notes ?? '');
     _priority = widget.initialTask?.priority ?? 2;
     _dueDate = widget.initialTask?.dueDate;
     _selectedProjectId = widget.initialTask?.projectId;
@@ -826,8 +990,7 @@ class _TaskEditorDialogState extends ConsumerState<_TaskEditorDialog> {
                 initialValue: currentProjectId,
                 dropdownColor: const Color(0xFF1E293B),
                 style: const TextStyle(color: Colors.white, fontSize: 13),
-                icon: const Icon(Icons.arrow_drop_down,
-                    color: Color(0xFF94A3B8)),
+                icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF94A3B8)),
                 decoration: InputDecoration(
                   filled: true,
                   fillColor: const Color(0xFF0F172A),
@@ -911,8 +1074,7 @@ class _TaskEditorDialogState extends ConsumerState<_TaskEditorDialog> {
               Row(
                 children: [
                   const Text('Fecha límite:',
-                      style:
-                          TextStyle(color: Color(0xFF94A3B8), fontSize: 13)),
+                      style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13)),
                   const SizedBox(width: 8),
                   TextButton.icon(
                     onPressed: _pickDate,
@@ -949,8 +1111,7 @@ class _TaskEditorDialogState extends ConsumerState<_TaskEditorDialog> {
                     Expanded(
                       child: Text(
                         'El título y las notas se cifran localmente con AES-256-GCM antes de enviarse al servidor.',
-                        style:
-                            TextStyle(color: Color(0xFF64748B), fontSize: 11),
+                        style: TextStyle(color: Color(0xFF64748B), fontSize: 11),
                       ),
                     ),
                   ],
@@ -1027,12 +1188,10 @@ class _TaskEditorDialogState extends ConsumerState<_TaskEditorDialog> {
       child: GestureDetector(
         onTap: () => setState(() => _priority = value),
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
+          duration: const Duration(milliseconds: 180),
           padding: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
-            color: selected
-                ? color.withValues(alpha: 0.2)
-                : const Color(0xFF0F172A),
+            color: selected ? color.withValues(alpha: 0.2) : const Color(0xFF0F172A),
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
               color: selected ? color : const Color(0xFF334155),
@@ -1106,8 +1265,8 @@ class _TaskEditorDialogState extends ConsumerState<_TaskEditorDialog> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-                'Error al ${_isEditing ? "actualizar" : "crear"} tarea: $e'),
+            content:
+                Text('Error al ${_isEditing ? "actualizar" : "crear"} tarea: $e'),
             backgroundColor: const Color(0xFFEF4444),
           ),
         );

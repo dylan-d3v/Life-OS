@@ -89,7 +89,13 @@ void main() {
     // Verificamos que el diálogo modal se abrió
     expect(find.text('Kev AI Assistant'), findsOneWidget);
     expect(find.text('E2EE'), findsOneWidget);
-    expect(find.byType(TextField), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(KevCommandBarDialog),
+        matching: find.byType(TextField),
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('KevCommandBarDialog muestra sugerencias iniciales y atajos de pie',

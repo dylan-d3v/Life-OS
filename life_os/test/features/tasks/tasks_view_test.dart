@@ -69,10 +69,11 @@ void main() {
     expect(find.text('Gestor de Tareas'), findsOneWidget);
     expect(find.text('Nueva Tarea'), findsOneWidget);
 
-    // Validar chips de filtro
+    // Validar chips de filtro y tarjetas de resumen
     expect(find.text('Todas'), findsOneWidget);
-    expect(find.text('Pendientes'), findsOneWidget);
-    expect(find.text('Completadas'), findsOneWidget);
+    expect(find.text('Pendientes'), findsWidgets);
+    expect(find.text('Completadas'), findsWidgets);
+    expect(find.text('Atrasadas'), findsWidgets);
 
     // Validar mensaje de estado vacío
     expect(find.textContaining('No tienes tareas aún'), findsOneWidget);
@@ -119,15 +120,15 @@ void main() {
     expect(find.text('Comprar componentes ESP32'), findsOneWidget);
     expect(find.text('Configurar tabla de tareas en Supabase'), findsOneWidget);
 
-    // Cambiar filtro a "Pendientes"
-    await tester.tap(find.text('Pendientes'));
+    // Cambiar filtro a "Pendientes" mediante el chip de la barra de filtros
+    await tester.tap(find.text('Pendientes').last);
     await tester.pumpAndSettle();
 
     expect(find.text('Comprar componentes ESP32'), findsOneWidget);
     expect(find.text('Configurar tabla de tareas en Supabase'), findsNothing);
 
-    // Cambiar filtro a "Completadas"
-    await tester.tap(find.text('Completadas'));
+    // Cambiar filtro a "Completadas" mediante el chip de la barra de filtros
+    await tester.tap(find.text('Completadas').last);
     await tester.pumpAndSettle();
 
     expect(find.text('Comprar componentes ESP32'), findsNothing);
@@ -354,5 +355,106 @@ void main() {
     // Solo la tarea de Alpha debe ser visible
     expect(find.text('Tarea del proyecto Alpha'), findsOneWidget);
     expect(find.text('Tarea del proyecto Beta'), findsNothing);
+  });
+
+  testWidgets(
+      'TasksView al seleccionar una tarea muestra su detalle en el panel derecho y permite volver',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1280, 800));
+
+    final sampleTask = TaskItem(
+      id: 'task-dyn-1',
+      title: 'Configurar receptor I2S ESP32',
+      notes: 'Verificar reloj bit clock y word select',
+      status: TaskStatus.todo,
+      priority: 3,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          taskListProvider
+              .overrideWith(() => MockTaskListNotifier([sampleTask])),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(body: TasksView()),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    // Inicialmente el panel derecho muestra el Briefing Diario
+    expect(find.text('Briefing Diario'), findsOneWidget);
+
+    // Clic simple en la tarea para seleccionarla
+    await tester.tap(find.text('Configurar receptor I2S ESP32').first);
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pumpAndSettle();
+
+    // El panel derecho ahora muestra los detalles de la tarea
+    expect(find.text('DETALLE DE TAREA'), findsOneWidget);
+    expect(find.text('Verificar reloj bit clock y word select'), findsWidgets);
+    expect(find.text('Volver al Briefing'), findsOneWidget);
+
+    // Pulsar "Volver al Briefing"
+    await tester.tap(find.text('Volver al Briefing'));
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pumpAndSettle();
+
+    // Regresa al Briefing Diario
+    expect(find.text('Briefing Diario'), findsOneWidget);
+    expect(find.text('DETALLE DE TAREA'), findsNothing);
+  });
+
+  testWidgets('TasksView filtra tareas mediante la barra de búsqueda integrada',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1280, 800));
+
+    final tasks = [
+      TaskItem(
+        id: 't-1',
+        title: 'Comprar pantalla OLED',
+        status: TaskStatus.todo,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      ),
+      TaskItem(
+        id: 't-2',
+        title: 'Diseñar PCB en KiCad',
+        notes: 'Incluir regulador LDO',
+        status: TaskStatus.todo,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      ),
+    ];
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          taskListProvider.overrideWith(() => MockTaskListNotifier(tasks)),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(body: TasksView()),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    expect(find.text('Comprar pantalla OLED'), findsOneWidget);
+    expect(find.text('Diseñar PCB en KiCad'), findsOneWidget);
+
+    // Ingresar texto en el campo de búsqueda
+    final searchInput = find.widgetWithText(TextField, 'Buscar tareas...');
+    expect(searchInput, findsOneWidget);
+
+    await tester.enterText(searchInput, 'KiCad');
+    await tester.pumpAndSettle();
+
+    expect(find.text('Comprar pantalla OLED'), findsNothing);
+    expect(find.text('Diseñar PCB en KiCad'), findsOneWidget);
   });
 }
