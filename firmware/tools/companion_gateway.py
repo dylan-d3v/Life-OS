@@ -40,24 +40,31 @@ def get_local_ip():
         return "127.0.0.1"
 
 def load_env_file():
-    """Carga claves desde el archivo .env de la raíz del proyecto si existe."""
-    env_path = os.path.join(os.path.dirname(__file__), "..", "..", ".env")
+    """Carga claves desde los archivos .env del proyecto (raíz y subdirectorio life_os)."""
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    candidates = [
+        os.path.join(base_dir, "..", "..", ".env"),
+        os.path.join(base_dir, "..", "..", "life_os", ".env"),
+    ]
     env_vars = {}
-    if os.path.exists(env_path):
-        try:
-            with open(env_path, "r", encoding="utf-8") as f:
-                for line in f:
-                    line = line.strip()
-                    if line and not line.startswith("#") and "=" in line:
-                        k, v = line.split("=", 1)
-                        env_vars[k.strip()] = v.strip().strip('"').strip("'")
-        except Exception as e:
-            print(f"[ENV] Error leyendo .env: {e}")
+    for env_path in candidates:
+        if os.path.exists(env_path):
+            try:
+                with open(env_path, "r", encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if line and not line.startswith("#") and "=" in line:
+                            k, v = line.split("=", 1)
+                            env_vars[k.strip()] = v.strip().strip('"').strip("'")
+            except Exception as e:
+                print(f"[ENV] Error leyendo {env_path}: {e}")
     return env_vars
 
 ENV_CONFIG = load_env_file()
 GROQ_KEY = os.environ.get("GROQ_API_KEY", ENV_CONFIG.get("GROQ_API_KEY", ""))
 GEMINI_KEY = os.environ.get("GEMINI_API_KEY", ENV_CONFIG.get("GEMINI_API_KEY", ""))
+SUPABASE_URL = os.environ.get("SUPABASE_URL", ENV_CONFIG.get("SUPABASE_URL", ""))
+SUPABASE_ANON_KEY = os.environ.get("SUPABASE_ANON_KEY", ENV_CONFIG.get("SUPABASE_ANON_KEY", ""))
 
 def generate_fallback_wav(frequency=440.0, duration_secs=0.8, sample_rate=16000):
     """Genera un buffer WAV sintético en memoria como fallback de audio."""
@@ -114,6 +121,101 @@ def synthesize_windows_speech(text):
     except Exception as e:
         print(f"[TTS] Error con PowerShell SpeechSynthesizer: {e}")
     return None
+
+def dispatch_kev_action(user_text, device_id="unknown"):
+    """
+    Despacha la orden de voz del satélite ESP32.
+    Determina la intención estructurada (tareas, notas, finanzas, eventos, briefing)
+    y genera una confirmación auditiva en español claro.
+    """
+    if not user_text:
+        return {
+            "success": False,
+            "action": "unknown",
+            "summary": "Comando vacío",
+            "ttsMessage": "No he podido escuchar tu orden con claridad. Por favor repítela.",
+            "error": "Texto vacío"
+        }
+
+    lower = user_text.lower().strip()
+
+    # 1. Tareas (create_task)
+    if any(k in lower for k in ["tarea", "comprar", "hacer", "llamar", "recordatorio", "pendiente"]):
+        clean = user_text
+        for prefix in ["crear tarea", "anota tarea", "anotar tarea", "nueva tarea", "recuérdame", "recuerdame", "tarea"]:
+            if clean.lower().startswith(prefix):
+                clean = clean[len(prefix):].strip()
+        clean = clean.lstrip(":,- ").strip()
+        title = clean.capitalize() if clean else "Nueva tarea"
+        return {
+            "success": True,
+            "action": "create_task",
+            "summary": f"Tarea creada: \"{title}\"",
+            "ttsMessage": f"Tarea registrada: {title}.",
+            "error": None
+        }
+
+    # 2. Notas (create_note)
+    if any(k in lower for k in ["nota", "apunte", "recordar", "anota esto", "escribe", "idea"]):
+        clean = user_text
+        for prefix in ["crear nota", "anotar nota", "nueva nota", "anota esto", "apunta esto", "nota"]:
+            if clean.lower().startswith(prefix):
+                clean = clean[len(prefix):].strip()
+        clean = clean.lstrip(":,- ").strip()
+        title = clean.capitalize() if clean else "Nueva nota"
+        return {
+            "success": True,
+            "action": "create_note",
+            "summary": f"Nota guardada: \"{title}\"",
+            "ttsMessage": f"Nota guardada en tu bóveda de Life OS: {title}.",
+            "error": None
+        }
+
+    # 3. Finanzas (log_finance)
+    if any(k in lower for k in ["gasto", "gasté", "gaste", "pago", "pagué", "pague", "compré", "compre", "costó", "costo", "$", "dólares", "euros", "soles", "pesos"]):
+        return {
+            "success": True,
+            "action": "log_finance",
+            "summary": f"Transacción financiera registrada: {user_text}",
+            "ttsMessage": "Gasto registrado correctamente en tu balance financiero.",
+            "error": None
+        }
+
+    # 4. Calendario (create_calendar_event)
+    if any(k in lower for k in ["reunión", "reunion", "evento", "cita", "calendario"]):
+        clean = user_text
+        for prefix in ["programar reunión", "agendar cita", "nuevo evento", "reunión", "reunion"]:
+            if clean.lower().startswith(prefix):
+                clean = clean[len(prefix):].strip()
+        clean = clean.lstrip(":,- ").strip()
+        title = clean.capitalize() if clean else "Reunión"
+        return {
+            "success": True,
+            "action": "create_calendar_event",
+            "summary": f"Evento programado: \"{title}\"",
+            "ttsMessage": f"Evento agendado en tu calendario: {title}.",
+            "error": None
+        }
+
+    # 5. Briefing / Consulta de resumen diario
+    if any(k in lower for k in ["hoy", "agenda", "resumen", "pendientes", "qué tengo", "que tengo", "briefing"]):
+        return {
+            "success": True,
+            "action": "query_briefing",
+            "summary": "Consulta de Briefing Diario ejecutada",
+            "ttsMessage": "Hola. Tienes tus tareas del día y eventos sincronizados en tu teléfono.",
+            "error": None
+        }
+
+    # Fallback general a creación de tarea rápida
+    return {
+        "success": True,
+        "action": "create_task",
+        "summary": f"Tarea creada: \"{user_text.capitalize()}\"",
+        "ttsMessage": f"Acción procesada y registrada: {user_text}.",
+        "error": None
+    }
+
 
 class LifeOSCompanionHandler(http.server.BaseHTTPRequestHandler):
 
@@ -234,37 +336,7 @@ class LifeOSCompanionHandler(http.server.BaseHTTPRequestHandler):
             device_id = data.get("device_id", "unknown")
             print(f"[GATEWAY - KEV] Comando recibido de {device_id}: \"{user_text}\"")
 
-            # Heurística simple de intención para el servidor de desarrollo
-            lower = user_text.lower()
-            if "tarea" in lower or "comprar" in lower or "hacer" in lower or "llamar" in lower:
-                action = "create_task"
-                title = user_text.replace("crear tarea", "").replace("tarea", "").strip()
-                summary = f"Tarea creada: {title.capitalize() if title else 'Nueva tarea'}"
-                tts_msg = f"Tarea registrada: {title if title else 'nueva tarea'}"
-            elif "nota" in lower or "recordar" in lower:
-                action = "create_note"
-                summary = f"Nota guardada: {user_text}"
-                tts_msg = "Nota guardada correctamente en Life OS"
-            elif "hoy" in lower or "agenda" in lower or "pendiente" in lower or "resumen" in lower:
-                action = "query_briefing"
-                summary = "Tienes 2 tareas pendientes y 1 evento para hoy"
-                tts_msg = "Hoy tienes dos tareas pendientes y un evento en tu calendario"
-            elif "gasto" in lower or "pago" in lower or "compre" in lower or "$" in lower:
-                action = "log_finance"
-                summary = "Gasto registrado en Finanzas"
-                tts_msg = "Gasto registrado correctamente en tu balance"
-            else:
-                action = "create_task"
-                summary = f"Tarea creada: {user_text}"
-                tts_msg = f"Acción registrada: {user_text}"
-
-            response_data = {
-                "success": True,
-                "action": action,
-                "summary": summary,
-                "ttsMessage": tts_msg,
-                "error": None
-            }
+            response_data = dispatch_kev_action(user_text, device_id)
             print(f"[GATEWAY - KEV] Respuesta: {json.dumps(response_data, ensure_ascii=False)}")
             self._send_json(200, response_data)
             return

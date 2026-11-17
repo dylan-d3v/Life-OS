@@ -97,10 +97,10 @@
 #endif
 
 // Gateway / Companion Endpoint de Life-OS
-// En desarrollo puede apuntar a la IP local de la PC ejecutando companion_gateway.py
+// En desarrollo local apunta a la IP de la PC (detectada automáticamente por companion_gateway.py)
 // En producción apunta a la Edge Function HTTPS de Supabase
 #ifndef LIFE_OS_GATEWAY_URL
-#define LIFE_OS_GATEWAY_URL     "http://192.168.1.100:8080/api/assistant"
+#define LIFE_OS_GATEWAY_URL     "http://192.168.100.11:8080/api/assistant"
 #endif
 
 #define LIFE_OS_DEVICE_ID       "pocket-assistant-01"
