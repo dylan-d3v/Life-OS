@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'navigation_provider.dart';
 import 'widgets/sidebar.dart';
 import '../../ai/presentation/kev_command_bar_dialog.dart';
+import '../../ai/presentation/today_briefing_view.dart';
 import '../../tasks/presentation/tasks_view.dart';
 import '../../notes/presentation/notes_view.dart';
 import '../../calendar/presentation/calendar_view.dart';
@@ -151,6 +152,8 @@ class DesktopScaffold extends ConsumerWidget {
 
   Widget _buildActiveView(NavSection section) {
     switch (section) {
+      case NavSection.today:
+        return const TodayBriefingView();
       case NavSection.tasks:
         return const TasksView();
       case NavSection.notes:

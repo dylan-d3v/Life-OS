@@ -14,58 +14,101 @@ class FinanceView extends ConsumerWidget {
     final activeFilter = ref.watch(financeFilterProvider);
     final summaryAsync = ref.watch(financeSummaryProvider);
 
-    return Container(
-      padding: const EdgeInsets.all(28),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // ── Encabezado ──
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isCompact = constraints.maxWidth < 650;
+
+        return Container(
+          padding: EdgeInsets.all(isCompact ? 14 : 28),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Flexible(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              // ── Encabezado ──
+              if (isCompact) ...[
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      'Finanzas Personales',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
+                    const Expanded(
+                      child: Text(
+                        'Finanzas Personales',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                      overflow: TextOverflow.ellipsis,
                     ),
-                    SizedBox(height: 4),
-                    Text(
-                      'Montos y categorías con privacidad absoluta Zero-Knowledge (AES-256-GCM)',
-                      style: TextStyle(
-                        color: Color(0xFF94A3B8),
-                        fontSize: 14,
+                    ElevatedButton.icon(
+                      onPressed: () => _openTransactionDialog(context, ref),
+                      icon: const Icon(Icons.add, size: 16),
+                      label: const Text('Nueva'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF0284C7),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 8),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                       ),
-                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(width: 16),
-              ElevatedButton.icon(
-                onPressed: () => _openTransactionDialog(context, ref),
-                icon: const Icon(Icons.add, size: 18),
-                label: const Text('Nueva Transacción'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF0284C7),
-                  foregroundColor: Colors.white,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+                const SizedBox(height: 4),
+                const Text(
+                  'Privacidad Zero-Knowledge (AES-256-GCM)',
+                  style: TextStyle(
+                    color: Color(0xFF94A3B8),
+                    fontSize: 12,
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
+              ] else
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Flexible(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Finanzas Personales',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            'Montos y categorías con privacidad absoluta Zero-Knowledge (AES-256-GCM)',
+                            style: TextStyle(
+                              color: Color(0xFF94A3B8),
+                              fontSize: 14,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    ElevatedButton.icon(
+                      onPressed: () => _openTransactionDialog(context, ref),
+                      icon: const Icon(Icons.add, size: 18),
+                      label: const Text('Nueva Transacción'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF0284C7),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 18, vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              const SizedBox(height: 20),
 
           // ── Tarjetas de Resumen Financiero ──
           summaryAsync.when(
@@ -76,47 +119,51 @@ class FinanceView extends ConsumerWidget {
           const SizedBox(height: 20),
 
           // ── Filtros por Tipo ──
-          Row(
-            children: [
-              _FilterChip(
-                label: 'Todas',
-                selected: activeFilter == FinanceFilter.all,
-                onTap: () => ref
-                    .read(financeFilterProvider.notifier)
-                    .setFilter(FinanceFilter.all),
-              ),
-              const SizedBox(width: 8),
-              _FilterChip(
-                label: 'Gastos',
-                selected: activeFilter == FinanceFilter.expense,
-                onTap: () => ref
-                    .read(financeFilterProvider.notifier)
-                    .setFilter(FinanceFilter.expense),
-              ),
-              const SizedBox(width: 8),
-              _FilterChip(
-                label: 'Ingresos',
-                selected: activeFilter == FinanceFilter.income,
-                onTap: () => ref
-                    .read(financeFilterProvider.notifier)
-                    .setFilter(FinanceFilter.income),
-              ),
-              const SizedBox(width: 8),
-              _FilterChip(
-                label: 'Transferencias',
-                selected: activeFilter == FinanceFilter.transfer,
-                onTap: () => ref
-                    .read(financeFilterProvider.notifier)
-                    .setFilter(FinanceFilter.transfer),
-              ),
-              const Spacer(),
-              IconButton(
-                icon: const Icon(Icons.refresh, color: Color(0xFF94A3B8)),
-                tooltip: 'Recargar transacciones',
-                onPressed: () =>
-                    ref.read(financeTransactionListProvider.notifier).refresh(),
-              ),
-            ],
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _FilterChip(
+                  label: 'Todas',
+                  selected: activeFilter == FinanceFilter.all,
+                  onTap: () => ref
+                      .read(financeFilterProvider.notifier)
+                      .setFilter(FinanceFilter.all),
+                ),
+                const SizedBox(width: 8),
+                _FilterChip(
+                  label: 'Gastos',
+                  selected: activeFilter == FinanceFilter.expense,
+                  onTap: () => ref
+                      .read(financeFilterProvider.notifier)
+                      .setFilter(FinanceFilter.expense),
+                ),
+                const SizedBox(width: 8),
+                _FilterChip(
+                  label: 'Ingresos',
+                  selected: activeFilter == FinanceFilter.income,
+                  onTap: () => ref
+                      .read(financeFilterProvider.notifier)
+                      .setFilter(FinanceFilter.income),
+                ),
+                const SizedBox(width: 8),
+                _FilterChip(
+                  label: 'Transferencias',
+                  selected: activeFilter == FinanceFilter.transfer,
+                  onTap: () => ref
+                      .read(financeFilterProvider.notifier)
+                      .setFilter(FinanceFilter.transfer),
+                ),
+                const SizedBox(width: 12),
+                IconButton(
+                  icon: const Icon(Icons.refresh, color: Color(0xFF94A3B8)),
+                  tooltip: 'Recargar transacciones',
+                  onPressed: () => ref
+                      .read(financeTransactionListProvider.notifier)
+                      .refresh(),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 16),
 
@@ -176,6 +223,8 @@ class FinanceView extends ConsumerWidget {
           ),
         ],
       ),
+    );
+      },
     );
   }
 
@@ -247,11 +296,12 @@ class _SummaryRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final isPositive = summary.netBalance >= 0;
 
-    return Row(
-      children: [
-        // Balance Neto
-        Expanded(
-          child: _StatCard(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isCompact = constraints.maxWidth < 620;
+
+        final cards = [
+          _StatCard(
             title: 'Balance Neto',
             value: '\$${_formatMoney(summary.netBalance)}',
             color: isPositive
@@ -261,30 +311,47 @@ class _SummaryRow extends StatelessWidget {
                 ? Icons.account_balance
                 : Icons.warning_amber_rounded,
           ),
-        ),
-        const SizedBox(width: 14),
-
-        // Total Ingresos
-        Expanded(
-          child: _StatCard(
+          _StatCard(
             title: 'Total Ingresos',
             value: '+\$${_formatMoney(summary.totalIncome)}',
             color: const Color(0xFF22C55E),
             icon: Icons.arrow_upward,
           ),
-        ),
-        const SizedBox(width: 14),
-
-        // Total Gastos
-        Expanded(
-          child: _StatCard(
+          _StatCard(
             title: 'Total Gastos',
             value: '-\$${_formatMoney(summary.totalExpense)}',
             color: const Color(0xFFEF4444),
             icon: Icons.arrow_downward,
           ),
-        ),
-      ],
+        ];
+
+        if (isCompact) {
+          return SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: cards.map((c) {
+                return Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: SizedBox(
+                    width: 170,
+                    child: c,
+                  ),
+                );
+              }).toList(),
+            ),
+          );
+        }
+
+        return Row(
+          children: [
+            Expanded(child: cards[0]),
+            const SizedBox(width: 14),
+            Expanded(child: cards[1]),
+            const SizedBox(width: 14),
+            Expanded(child: cards[2]),
+          ],
+        );
+      },
     );
   }
 }

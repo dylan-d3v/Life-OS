@@ -50,7 +50,7 @@ class TasksView extends ConsumerWidget {
 
                     // 4. Lista de Tareas
                     Expanded(
-                      child: _buildTaskList(ref),
+                      child: _buildTaskList(ref, showSidePanel: showSidePanel),
                     ),
                   ],
                 ),
@@ -123,7 +123,7 @@ class TasksView extends ConsumerWidget {
   // ===========================================================================
   // Lista de Tareas con Estados (Loading, Error, Empty, Data)
   // ===========================================================================
-  Widget _buildTaskList(WidgetRef ref) {
+  Widget _buildTaskList(WidgetRef ref, {bool showSidePanel = false}) {
     final filteredTasks = ref.watch(filteredTasksProvider);
     final activeFilter = ref.watch(taskFilterProvider);
     final selectedProjectFilter = ref.watch(taskProjectFilterProvider);
@@ -171,7 +171,7 @@ class TasksView extends ConsumerWidget {
           separatorBuilder: (context, index) => const SizedBox(height: 8),
           itemBuilder: (context, index) {
             final task = tasks[index];
-            return _TaskCard(task: task);
+            return _TaskCard(task: task, showSidePanel: showSidePanel);
           },
         );
       },
@@ -532,9 +532,13 @@ class _TaskProjectFilterDropdown extends ConsumerWidget {
 // =============================================================================
 
 class _TaskCard extends ConsumerWidget {
-  const _TaskCard({required this.task});
+  const _TaskCard({
+    required this.task,
+    this.showSidePanel = false,
+  });
 
   final TaskItem task;
+  final bool showSidePanel;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -576,121 +580,243 @@ class _TaskCard extends ConsumerWidget {
           borderRadius: BorderRadius.circular(10),
           onTap: () {
             ref.read(selectedTaskIdProvider.notifier).select(task.id);
+            if (!showSidePanel) {
+              _showTaskBottomSheet(context, ref, task);
+            }
           },
           onDoubleTap: () => _openTaskDialog(context, ref, task: task),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            child: Row(
-              children: [
-                // Checkbox
-                GestureDetector(
-                  onTap: () =>
-                      ref.read(taskListProvider.notifier).toggleStatus(task.id),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 180),
-                    width: 22,
-                    height: 22,
-                    decoration: BoxDecoration(
-                      color: isDone ? const Color(0xFF22C55E) : Colors.transparent,
-                      border: Border.all(
-                        color: isDone
-                            ? const Color(0xFF22C55E)
-                            : const Color(0xFF64748B),
-                        width: 2,
-                      ),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: isDone
-                        ? const Icon(Icons.check, size: 14, color: Colors.white)
-                        : null,
-                  ),
-                ),
-                const SizedBox(width: 12),
+            child: LayoutBuilder(
+              builder: (context, cardConstraints) {
+                final isCompact = cardConstraints.maxWidth < 550;
 
-                // Indicador de prioridad
-                Container(
-                  width: 3.5,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    color: priorityColor,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                const SizedBox(width: 12),
-
-                // Contenido (Título y notas)
-                Expanded(
-                  child: Column(
+                if (isCompact) {
+                  return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(
-                        task.title,
-                        style: TextStyle(
-                          color: isDone ? const Color(0xFF64748B) : Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          decoration: isDone
-                              ? TextDecoration.lineThrough
-                              : TextDecoration.none,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
-                      ),
-                      if (task.notes.isNotEmpty) ...[
-                        const SizedBox(height: 2),
-                        Text(
-                          task.notes,
-                          style: TextStyle(
-                            color: const Color(0xFF64748B),
-                            fontSize: 12,
-                            decoration: isDone
-                                ? TextDecoration.lineThrough
-                                : TextDecoration.none,
+                      Row(
+                        children: [
+                          // Checkbox
+                          GestureDetector(
+                            onTap: () => ref
+                                .read(taskListProvider.notifier)
+                                .toggleStatus(task.id),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 180),
+                              width: 22,
+                              height: 22,
+                              decoration: BoxDecoration(
+                                color: isDone
+                                    ? const Color(0xFF22C55E)
+                                    : Colors.transparent,
+                                border: Border.all(
+                                  color: isDone
+                                      ? const Color(0xFF22C55E)
+                                      : const Color(0xFF64748B),
+                                  width: 2,
+                                ),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: isDone
+                                  ? const Icon(Icons.check,
+                                      size: 14, color: Colors.white)
+                                  : null,
+                            ),
                           ),
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 1,
+                          const SizedBox(width: 10),
+                          Container(
+                            width: 3.5,
+                            height: 26,
+                            decoration: BoxDecoration(
+                              color: priorityColor,
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  task.title,
+                                  style: TextStyle(
+                                    color: isDone
+                                        ? const Color(0xFF64748B)
+                                        : Colors.white,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                    decoration: isDone
+                                        ? TextDecoration.lineThrough
+                                        : TextDecoration.none,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 1,
+                                ),
+                                if (task.notes.isNotEmpty) ...[
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    task.notes,
+                                    style: TextStyle(
+                                      color: const Color(0xFF64748B),
+                                      fontSize: 12,
+                                      decoration: isDone
+                                          ? TextDecoration.lineThrough
+                                          : TextDecoration.none,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 1,
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          _PriorityBadge(priority: task.priority),
+                        ],
+                      ),
+                      if (project != null || task.dueDate != null) ...[
+                        const SizedBox(height: 8),
+                        Padding(
+                          padding: const EdgeInsets.only(left: 36),
+                          child: Wrap(
+                            spacing: 8,
+                            runSpacing: 4,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              if (project != null)
+                                _ProjectBadge(project: project),
+                              if (task.dueDate != null)
+                                _DueDateBadge(dueDate: task.dueDate!),
+                            ],
+                          ),
                         ),
                       ],
                     ],
-                  ),
-                ),
+                  );
+                }
 
-                // Badge de Proyecto Asociado
-                if (project != null) ...[
-                  const SizedBox(width: 8),
-                  _ProjectBadge(project: project),
-                ],
+                return Row(
+                  children: [
+                    // Checkbox
+                    GestureDetector(
+                      onTap: () => ref
+                          .read(taskListProvider.notifier)
+                          .toggleStatus(task.id),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 180),
+                        width: 22,
+                        height: 22,
+                        decoration: BoxDecoration(
+                          color: isDone
+                              ? const Color(0xFF22C55E)
+                              : Colors.transparent,
+                          border: Border.all(
+                            color: isDone
+                                ? const Color(0xFF22C55E)
+                                : const Color(0xFF64748B),
+                            width: 2,
+                          ),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: isDone
+                            ? const Icon(Icons.check,
+                                size: 14, color: Colors.white)
+                            : null,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
 
-                // Fecha de vencimiento
-                if (task.dueDate != null) ...[
-                  const SizedBox(width: 10),
-                  _DueDateBadge(dueDate: task.dueDate!),
-                ],
+                    // Indicador de prioridad
+                    Container(
+                      width: 3.5,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: priorityColor,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
 
-                // Prioridad badge
-                const SizedBox(width: 8),
-                _PriorityBadge(priority: task.priority),
+                    // Contenido (Título y notas)
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            task.title,
+                            style: TextStyle(
+                              color: isDone
+                                  ? const Color(0xFF64748B)
+                                  : Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              decoration: isDone
+                                  ? TextDecoration.lineThrough
+                                  : TextDecoration.none,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                          ),
+                          if (task.notes.isNotEmpty) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              task.notes,
+                              style: TextStyle(
+                                color: const Color(0xFF64748B),
+                                fontSize: 12,
+                                decoration: isDone
+                                    ? TextDecoration.lineThrough
+                                    : TextDecoration.none,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
 
-                // Botón editar
-                const SizedBox(width: 6),
-                IconButton(
-                  icon: const Icon(Icons.edit_outlined,
-                      size: 17, color: Color(0xFF64748B)),
-                  tooltip: 'Editar tarea (doble clic)',
-                  onPressed: () => _openTaskDialog(context, ref, task: task),
-                  splashRadius: 16,
-                ),
+                    // Badge de Proyecto Asociado
+                    if (project != null) ...[
+                      const SizedBox(width: 8),
+                      _ProjectBadge(project: project),
+                    ],
 
-                // Botón eliminar
-                const SizedBox(width: 4),
-                IconButton(
-                  icon: const Icon(Icons.delete_outline,
-                      size: 17, color: Color(0xFF64748B)),
-                  tooltip: 'Eliminar tarea',
-                  onPressed: () => _confirmDelete(context, ref),
-                  splashRadius: 16,
-                ),
-              ],
+                    // Fecha de vencimiento
+                    if (task.dueDate != null) ...[
+                      const SizedBox(width: 10),
+                      _DueDateBadge(dueDate: task.dueDate!),
+                    ],
+
+                    // Prioridad badge
+                    const SizedBox(width: 8),
+                    _PriorityBadge(priority: task.priority),
+
+                    // Botón editar
+                    const SizedBox(width: 6),
+                    IconButton(
+                      icon: const Icon(Icons.edit_outlined,
+                          size: 17, color: Color(0xFF64748B)),
+                      tooltip: 'Editar tarea (doble clic)',
+                      onPressed: () =>
+                          _openTaskDialog(context, ref, task: task),
+                      splashRadius: 16,
+                    ),
+
+                    // Botón eliminar
+                    const SizedBox(width: 4),
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline,
+                          size: 17, color: Color(0xFF64748B)),
+                      tooltip: 'Eliminar tarea',
+                      onPressed: () => _confirmDelete(context, ref),
+                      splashRadius: 16,
+                    ),
+                  ],
+                );
+              },
             ),
           ),
         ),
@@ -734,6 +860,188 @@ class _TaskCard extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// Muestra el detalle completo de la tarea en un Modal Bottom Sheet optimizado para smartphones.
+void _showTaskBottomSheet(BuildContext context, WidgetRef ref, TaskItem task) {
+  final projectMap = ref.read(projectMapProvider);
+  final project = task.projectId != null ? projectMap[task.projectId] : null;
+  final isDone = task.status == TaskStatus.done;
+
+  showModalBottomSheet(
+    context: context,
+    backgroundColor: const Color(0xFF1E293B),
+    isScrollControlled: true,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    ),
+    builder: (ctx) {
+      return SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF64748B),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Text(
+                      task.title,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        decoration: isDone ? TextDecoration.lineThrough : null,
+                      ),
+                    ),
+                  ),
+                  _PriorityBadge(priority: task.priority),
+                ],
+              ),
+              if (task.notes.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0F172A),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFF334155)),
+                  ),
+                  child: Text(
+                    task.notes,
+                    style:
+                        const TextStyle(color: Color(0xFFCBD5E1), fontSize: 13),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  if (project != null) _ProjectBadge(project: project),
+                  if (task.dueDate != null)
+                    _DueDateBadge(dueDate: task.dueDate!),
+                ],
+              ),
+              const SizedBox(height: 20),
+              // Botón de alternar estado (Completar / Pendiente)
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    ref.read(taskListProvider.notifier).toggleStatus(task.id);
+                    Navigator.pop(ctx);
+                  },
+                  icon: Icon(
+                      isDone ? Icons.restart_alt : Icons.check_circle_outline),
+                  label: Text(isDone
+                      ? 'Marcar como Pendiente'
+                      : 'Marcar como Completada'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: isDone
+                        ? const Color(0xFF334155)
+                        : const Color(0xFF22C55E),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        _openTaskDialog(context, ref, task: task);
+                      },
+                      icon: const Icon(Icons.edit_outlined, size: 18),
+                      label: const Text('Editar'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        side: const BorderSide(color: Color(0xFF475569)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        _confirmDeleteTaskDirect(context, ref, task);
+                      },
+                      icon: const Icon(Icons.delete_outline,
+                          size: 18, color: Color(0xFFEF4444)),
+                      label: const Text('Eliminar',
+                          style: TextStyle(color: Color(0xFFEF4444))),
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(
+                            color: const Color(0xFFEF4444)
+                                .withValues(alpha: 0.5)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10)),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}
+
+void _confirmDeleteTaskDirect(
+    BuildContext context, WidgetRef ref, TaskItem task) {
+  showDialog(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      backgroundColor: const Color(0xFF1E293B),
+      title: const Text('Eliminar tarea',
+          style: TextStyle(color: Colors.white)),
+      content: Text(
+        '¿Eliminar "${task.title}"? Esta acción se sincronizará con la nube cifrada.',
+        style: const TextStyle(color: Color(0xFF94A3B8)),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('Cancelar'),
+        ),
+        TextButton(
+          onPressed: () {
+            ref.read(taskListProvider.notifier).deleteTask(task.id);
+            Navigator.pop(ctx);
+          },
+          child:
+              const Text('Eliminar', style: TextStyle(color: Color(0xFFEF4444))),
+        ),
+      ],
+    ),
+  );
 }
 
 // =============================================================================

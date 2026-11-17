@@ -66,82 +66,99 @@ class DailyBriefingCard extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Encabezado del Briefing
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final isCompact = constraints.maxWidth < 450;
+
+                  return Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFFF59E0B), Color(0xFFFB923C)],
-                          ),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Icon(
-                          Icons.wb_sunny_outlined,
-                          size: 18,
-                          color: Colors.white,
+                      Expanded(
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [Color(0xFFF59E0B), Color(0xFFFB923C)],
+                                ),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Icon(
+                                Icons.wb_sunny_outlined,
+                                size: 18,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Briefing Diario Kev',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  Text(
+                                    dateStr,
+                                    style: const TextStyle(
+                                      color: Color(0xFF94A3B8),
+                                      fontSize: 12,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      const SizedBox(width: 8),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Text(
-                            'Briefing Diario Kev',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          Text(
-                            dateStr,
-                            style: const TextStyle(
+                          IconButton(
+                            tooltip: 'Recargar briefing',
+                            icon: const Icon(
+                              Icons.refresh,
+                              size: 18,
                               color: Color(0xFF94A3B8),
-                              fontSize: 12,
                             ),
+                            onPressed: () => ref.refresh(dailyBriefingProvider),
                           ),
+                          if (!isCompact) ...[
+                            const SizedBox(width: 6),
+                            TextButton.icon(
+                              style: TextButton.styleFrom(
+                                backgroundColor: const Color(0xFF1E293B),
+                                foregroundColor: const Color(0xFF818CF8),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 8),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  side:
+                                      const BorderSide(color: Color(0xFF475569)),
+                                ),
+                              ),
+                              onPressed: () => showKevCommandBar(context),
+                              icon: const Icon(Icons.auto_awesome, size: 14),
+                              label: const Text(
+                                'Kev (Ctrl + K)',
+                                style: TextStyle(
+                                    fontSize: 12, fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ],
-                  ),
-                  Row(
-                    children: [
-                      IconButton(
-                        tooltip: 'Recargar briefing',
-                        icon: const Icon(
-                          Icons.refresh,
-                          size: 18,
-                          color: Color(0xFF94A3B8),
-                        ),
-                        onPressed: () => ref.refresh(dailyBriefingProvider),
-                      ),
-                      const SizedBox(width: 6),
-                      TextButton.icon(
-                        style: TextButton.styleFrom(
-                          backgroundColor: const Color(0xFF1E293B),
-                          foregroundColor: const Color(0xFF818CF8),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 8),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            side: const BorderSide(color: Color(0xFF475569)),
-                          ),
-                        ),
-                        onPressed: () => showKevCommandBar(context),
-                        icon: const Icon(Icons.auto_awesome, size: 14),
-                        label: const Text(
-                          'Kev (Ctrl + K)',
-                          style: TextStyle(
-                              fontSize: 12, fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+                  );
+                },
               ),
 
               const SizedBox(height: 16),

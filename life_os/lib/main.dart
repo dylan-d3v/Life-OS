@@ -10,7 +10,7 @@ import 'core/providers/crypto_providers.dart';
 import 'core/providers/supabase_providers.dart';
 import 'features/auth/presentation/auth_controller.dart';
 import 'features/auth/presentation/auth_screen.dart';
-import 'features/shell/presentation/desktop_scaffold.dart';
+import 'features/shell/presentation/adaptive_scaffold.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -87,7 +87,7 @@ class LifeOSApp extends ConsumerWidget {
               ref.watch(supabaseClientProvider)?.auth.currentUser;
           // El usuario solo accede si tiene sesión en Supabase y la bóveda E2EE está desbloqueada
           if (user != null && vault.isUnlocked) {
-            return const DesktopScaffold();
+            return const AdaptiveScaffold();
           }
           return const AuthScreen();
         },
@@ -95,7 +95,7 @@ class LifeOSApp extends ConsumerWidget {
           final directUser =
               ref.watch(supabaseClientProvider)?.auth.currentUser;
           if (directUser != null && vault.isUnlocked) {
-            return const DesktopScaffold();
+            return const AdaptiveScaffold();
           }
           return const Scaffold(
             backgroundColor: Color(0xFF0F172A),

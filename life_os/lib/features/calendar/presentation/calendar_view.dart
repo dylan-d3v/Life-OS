@@ -124,79 +124,138 @@ class CalendarView extends ConsumerWidget {
         data: (allEvents) {
           final workspaceEvents = workspaceEventsAsync.value ?? allEvents;
 
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // ── 1. Barra Lateral Izquierda (Sidebar) ──
-              CalendarSidebar(allEvents: allEvents),
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              final isDesktop = constraints.maxWidth >= 900;
 
-              // ── 2. Espacio Central de Trabajo (Workspace) ──
-              Expanded(
-                child: Column(
+              if (isDesktop) {
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Toolbar Superior
-                    CalendarToolbar(
-                      onNewEventPressed: () => _openEventDialog(context),
-                    ),
+                    // ── 1. Barra Lateral Izquierda (Sidebar) ──
+                    CalendarSidebar(allEvents: allEvents),
 
-                    // Mensaje de estado vacío si no hay eventos registrados
-                    if (workspaceEvents.isEmpty)
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: CalendarTheme.elevatedSurface.withValues(alpha: 0.5),
-                          border: const Border(
-                            bottom: BorderSide(
-                                color: CalendarTheme.borderSubtle, width: 1),
+                    // ── 2. Espacio Central de Trabajo (Workspace) ──
+                    Expanded(
+                      child: Column(
+                        children: [
+                          // Toolbar Superior
+                          CalendarToolbar(
+                            onNewEventPressed: () => _openEventDialog(context),
                           ),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.info_outline_rounded,
-                              size: 14,
-                              color: CalendarTheme.accentLight,
-                            ),
-                            const SizedBox(width: 8),
-                            const Text(
-                              'No tienes eventos registrados para los filtros actuales.',
-                              style: TextStyle(
-                                color: CalendarTheme.textSecondary,
-                                fontSize: 11,
+
+                          // Mensaje de estado vacío si no hay eventos registrados
+                          if (workspaceEvents.isEmpty)
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: CalendarTheme.elevatedSurface
+                                    .withValues(alpha: 0.5),
+                                border: const Border(
+                                  bottom: BorderSide(
+                                      color: CalendarTheme.borderSubtle,
+                                      width: 1),
+                                ),
+                              ),
+                              child: const Row(
+                                children: [
+                                  Icon(
+                                    Icons.info_outline_rounded,
+                                    size: 14,
+                                    color: CalendarTheme.accentLight,
+                                  ),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'No tienes eventos registrados para los filtros actuales.',
+                                    style: TextStyle(
+                                      color: CalendarTheme.textSecondary,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                          ],
-                        ),
-                      ),
 
-                    // Vistas Centrales (Mes, Semana, Día)
-                    Expanded(
-                      child: _buildCenterCalendar(
-                        context,
-                        ref,
-                        viewMode: viewMode,
-                        events: workspaceEvents,
+                          // Vistas Centrales (Mes, Semana, Día)
+                          Expanded(
+                            child: _buildCenterCalendar(
+                              context,
+                              ref,
+                              viewMode: viewMode,
+                              events: workspaceEvents,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ],
-                ),
-              ),
 
-              // ── 3. Panel Lateral Derecho (Agenda y Timeline) ──
-              CalendarAgendaPanel(
-                allEvents: workspaceEvents,
-                onEditEvent: (event) =>
-                    _openEventDialog(context, eventToEdit: event),
-                onDeleteEvent: (event) =>
-                    _confirmDeleteEvent(context, ref, event),
-                onAddEventForDay: () {
-                  final selectedDate = ref.read(calendarSelectedDateProvider);
-                  _openEventDialog(context, initialDate: selectedDate);
-                },
-              ),
-            ],
+                    // ── 3. Panel Lateral Derecho (Agenda y Timeline) ──
+                    CalendarAgendaPanel(
+                      allEvents: workspaceEvents,
+                      onEditEvent: (event) =>
+                          _openEventDialog(context, eventToEdit: event),
+                      onDeleteEvent: (event) =>
+                          _confirmDeleteEvent(context, ref, event),
+                      onAddEventForDay: () {
+                        final selectedDate =
+                            ref.read(calendarSelectedDateProvider);
+                        _openEventDialog(context, initialDate: selectedDate);
+                      },
+                    ),
+                  ],
+                );
+              }
+
+              // ── Layout Móvil (Columna única optimizada) ──
+              return Column(
+                children: [
+                  CalendarToolbar(
+                    onNewEventPressed: () => _openEventDialog(context),
+                  ),
+                  if (workspaceEvents.isEmpty)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: CalendarTheme.elevatedSurface
+                            .withValues(alpha: 0.5),
+                        border: const Border(
+                          bottom: BorderSide(
+                              color: CalendarTheme.borderSubtle, width: 1),
+                        ),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(
+                            Icons.info_outline_rounded,
+                            size: 14,
+                            color: CalendarTheme.accentLight,
+                          ),
+                          SizedBox(width: 8),
+                          Text(
+                            'No tienes eventos registrados.',
+                            style: TextStyle(
+                              color: CalendarTheme.textSecondary,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  Expanded(
+                    child: _buildCenterCalendar(
+                      context,
+                      ref,
+                      viewMode: viewMode,
+                      events: workspaceEvents,
+                    ),
+                  ),
+                ],
+              );
+            },
           );
         },
       ),

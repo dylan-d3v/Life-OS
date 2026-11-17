@@ -86,6 +86,14 @@ class Sidebar extends ConsumerWidget {
               children: [
                 _buildNavItem(
                   ref: ref,
+                  section: NavSection.today,
+                  icon: Icons.wb_sunny_outlined,
+                  label: 'Hoy',
+                  isActive: activeSection == NavSection.today,
+                  isCollapsed: isCollapsed,
+                ),
+                _buildNavItem(
+                  ref: ref,
                   section: NavSection.tasks,
                   icon: Icons.check_circle_outline,
                   label: 'Tareas',

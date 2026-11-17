@@ -70,47 +70,50 @@ class ProjectsView extends ConsumerWidget {
           const SizedBox(height: 20),
 
           // ── Filtros rápidos ──
-          Row(
-            children: [
-              _FilterChip(
-                label: 'Todos',
-                selected: activeFilter == ProjectFilter.all,
-                onTap: () => ref
-                    .read(projectFilterProvider.notifier)
-                    .setFilter(ProjectFilter.all),
-              ),
-              const SizedBox(width: 8),
-              _FilterChip(
-                label: 'Activos',
-                selected: activeFilter == ProjectFilter.active,
-                onTap: () => ref
-                    .read(projectFilterProvider.notifier)
-                    .setFilter(ProjectFilter.active),
-              ),
-              const SizedBox(width: 8),
-              _FilterChip(
-                label: 'Pausados',
-                selected: activeFilter == ProjectFilter.paused,
-                onTap: () => ref
-                    .read(projectFilterProvider.notifier)
-                    .setFilter(ProjectFilter.paused),
-              ),
-              const SizedBox(width: 8),
-              _FilterChip(
-                label: 'Completados',
-                selected: activeFilter == ProjectFilter.completed,
-                onTap: () => ref
-                    .read(projectFilterProvider.notifier)
-                    .setFilter(ProjectFilter.completed),
-              ),
-              const Spacer(),
-              IconButton(
-                icon: const Icon(Icons.refresh, color: Color(0xFF94A3B8)),
-                tooltip: 'Recargar proyectos',
-                onPressed: () =>
-                    ref.read(projectListProvider.notifier).refresh(),
-              ),
-            ],
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _FilterChip(
+                  label: 'Todos',
+                  selected: activeFilter == ProjectFilter.all,
+                  onTap: () => ref
+                      .read(projectFilterProvider.notifier)
+                      .setFilter(ProjectFilter.all),
+                ),
+                const SizedBox(width: 8),
+                _FilterChip(
+                  label: 'Activos',
+                  selected: activeFilter == ProjectFilter.active,
+                  onTap: () => ref
+                      .read(projectFilterProvider.notifier)
+                      .setFilter(ProjectFilter.active),
+                ),
+                const SizedBox(width: 8),
+                _FilterChip(
+                  label: 'Pausados',
+                  selected: activeFilter == ProjectFilter.paused,
+                  onTap: () => ref
+                      .read(projectFilterProvider.notifier)
+                      .setFilter(ProjectFilter.paused),
+                ),
+                const SizedBox(width: 8),
+                _FilterChip(
+                  label: 'Completados',
+                  selected: activeFilter == ProjectFilter.completed,
+                  onTap: () => ref
+                      .read(projectFilterProvider.notifier)
+                      .setFilter(ProjectFilter.completed),
+                ),
+                const SizedBox(width: 12),
+                IconButton(
+                  icon: const Icon(Icons.refresh, color: Color(0xFF94A3B8)),
+                  tooltip: 'Recargar proyectos',
+                  onPressed: () =>
+                      ref.read(projectListProvider.notifier).refresh(),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 20),
 

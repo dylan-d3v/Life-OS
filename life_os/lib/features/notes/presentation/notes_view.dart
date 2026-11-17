@@ -16,82 +16,66 @@ class NotesView extends ConsumerWidget {
     final activeFilter = ref.watch(noteFilterProvider);
     final selectedProjectFilter = ref.watch(noteProjectFilterProvider);
 
-    return Container(
-      padding: const EdgeInsets.all(28),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // ── Encabezado ──
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Flexible(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Notas Diarias',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      'Apuntes, ideas y conocimiento con cifrado de extremo a extremo',
-                      style: TextStyle(
-                        color: Color(0xFF94A3B8),
-                        fontSize: 14,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 16),
-              ElevatedButton.icon(
-                onPressed: () => _openNoteDialog(context, ref),
-                icon: const Icon(Icons.add, size: 18),
-                label: const Text('Nueva Nota'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF0284C7),
-                  foregroundColor: Colors.white,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isCompact = constraints.maxWidth < 650;
 
-          // ── Barra de búsqueda y filtros ──
-          Row(
+        return Container(
+          padding: EdgeInsets.all(isCompact ? 14 : 28),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _FilterChip(
-                label: 'Todas',
-                selected: activeFilter == NoteFilter.all,
-                onTap: () => ref
-                    .read(noteFilterProvider.notifier)
-                    .setFilter(NoteFilter.all),
+              // ── Encabezado ──
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Flexible(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Notas Diarias',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          'Apuntes, ideas y conocimiento con cifrado de extremo a extremo',
+                          style: TextStyle(
+                            color: Color(0xFF94A3B8),
+                            fontSize: 14,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  ElevatedButton.icon(
+                    onPressed: () => _openNoteDialog(context, ref),
+                    icon: const Icon(Icons.add, size: 18),
+                    label: const Text('Nueva Nota'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF0284C7),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 18, vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 8),
-              _FilterChip(
-                label: 'Fijadas',
-                selected: activeFilter == NoteFilter.pinned,
-                onTap: () => ref
-                    .read(noteFilterProvider.notifier)
-                    .setFilter(NoteFilter.pinned),
-              ),
-              const SizedBox(width: 8),
-              const _NoteProjectFilterDropdown(),
-              const SizedBox(width: 16),
-              Expanded(
-                child: SizedBox(
+              const SizedBox(height: 20),
+
+              // ── Barra de búsqueda y filtros ──
+              if (isCompact) ...[
+                SizedBox(
                   height: 38,
                   child: TextField(
                     onChanged: (val) => ref
@@ -100,8 +84,8 @@ class NotesView extends ConsumerWidget {
                     style: const TextStyle(color: Colors.white, fontSize: 13),
                     decoration: InputDecoration(
                       hintText: 'Buscar en notas descifradas...',
-                      hintStyle:
-                          const TextStyle(color: Color(0xFF64748B), fontSize: 13),
+                      hintStyle: const TextStyle(
+                          color: Color(0xFF64748B), fontSize: 13),
                       prefixIcon: const Icon(Icons.search,
                           size: 18, color: Color(0xFF64748B)),
                       filled: true,
@@ -126,79 +110,173 @@ class NotesView extends ConsumerWidget {
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              IconButton(
-                icon: const Icon(Icons.refresh, color: Color(0xFF94A3B8)),
-                tooltip: 'Recargar notas',
-                onPressed: () => ref.read(noteListProvider.notifier).refresh(),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-
-          // ── Lista de Notas ──
-          Expanded(
-            child: filteredNotes.when(
-              loading: () => const Center(
-                child: CircularProgressIndicator(color: Color(0xFF38BDF8)),
-              ),
-              error: (error, stack) => Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
+                const SizedBox(height: 10),
+                Row(
                   children: [
-                    const Icon(Icons.error_outline,
-                        size: 48, color: Color(0xFFEF4444)),
-                    const SizedBox(height: 12),
-                    const Text('Error al cargar notas',
-                        style: TextStyle(
-                            color: Colors.white, fontWeight: FontWeight.w600)),
-                    const SizedBox(height: 4),
-                    Text(
-                      error.toString(),
-                      style: const TextStyle(
-                          color: Color(0xFF94A3B8), fontSize: 12),
-                      textAlign: TextAlign.center,
+                    _FilterChip(
+                      label: 'Todas',
+                      selected: activeFilter == NoteFilter.all,
+                      onTap: () => ref
+                          .read(noteFilterProvider.notifier)
+                          .setFilter(NoteFilter.all),
                     ),
-                    const SizedBox(height: 16),
-                    TextButton.icon(
+                    const SizedBox(width: 8),
+                    _FilterChip(
+                      label: 'Fijadas',
+                      selected: activeFilter == NoteFilter.pinned,
+                      onTap: () => ref
+                          .read(noteFilterProvider.notifier)
+                          .setFilter(NoteFilter.pinned),
+                    ),
+                    const SizedBox(width: 8),
+                    const _NoteProjectFilterDropdown(),
+                    const Spacer(),
+                    IconButton(
+                      icon:
+                          const Icon(Icons.refresh, color: Color(0xFF94A3B8)),
+                      tooltip: 'Recargar notas',
                       onPressed: () =>
                           ref.read(noteListProvider.notifier).refresh(),
-                      icon: const Icon(Icons.refresh),
-                      label: const Text('Reintentar'),
                     ),
                   ],
                 ),
-              ),
-              data: (notes) {
-                if (notes.isEmpty) {
-                  return _buildEmptyState(
-                    activeFilter,
-                    hasProjectFilter: selectedProjectFilter != null,
-                  );
-                }
-                return GridView.builder(
-                  gridDelegate:
-                      const SliverGridDelegateWithMaxCrossAxisExtent(
-                    maxCrossAxisExtent: 360,
-                    mainAxisExtent: 220,
-                    crossAxisSpacing: 14,
-                    mainAxisSpacing: 14,
+              ] else
+                Row(
+                  children: [
+                    _FilterChip(
+                      label: 'Todas',
+                      selected: activeFilter == NoteFilter.all,
+                      onTap: () => ref
+                          .read(noteFilterProvider.notifier)
+                          .setFilter(NoteFilter.all),
+                    ),
+                    const SizedBox(width: 8),
+                    _FilterChip(
+                      label: 'Fijadas',
+                      selected: activeFilter == NoteFilter.pinned,
+                      onTap: () => ref
+                          .read(noteFilterProvider.notifier)
+                          .setFilter(NoteFilter.pinned),
+                    ),
+                    const SizedBox(width: 8),
+                    const _NoteProjectFilterDropdown(),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: SizedBox(
+                        height: 38,
+                        child: TextField(
+                          onChanged: (val) => ref
+                              .read(noteSearchQueryProvider.notifier)
+                              .setQuery(val),
+                          style: const TextStyle(
+                              color: Colors.white, fontSize: 13),
+                          decoration: InputDecoration(
+                            hintText: 'Buscar en notas descifradas...',
+                            hintStyle: const TextStyle(
+                                color: Color(0xFF64748B), fontSize: 13),
+                            prefixIcon: const Icon(Icons.search,
+                                size: 18, color: Color(0xFF64748B)),
+                            filled: true,
+                            fillColor: const Color(0xFF1E293B),
+                            contentPadding:
+                                const EdgeInsets.symmetric(horizontal: 12),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(20),
+                              borderSide:
+                                  const BorderSide(color: Color(0xFF334155)),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(20),
+                              borderSide:
+                                  const BorderSide(color: Color(0xFF334155)),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(20),
+                              borderSide:
+                                  const BorderSide(color: Color(0xFF0284C7)),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    IconButton(
+                      icon:
+                          const Icon(Icons.refresh, color: Color(0xFF94A3B8)),
+                      tooltip: 'Recargar notas',
+                      onPressed: () =>
+                          ref.read(noteListProvider.notifier).refresh(),
+                    ),
+                  ],
+                ),
+              const SizedBox(height: 20),
+
+              // ── Lista de Notas ──
+              Expanded(
+                child: filteredNotes.when(
+                  loading: () => const Center(
+                    child: CircularProgressIndicator(color: Color(0xFF38BDF8)),
                   ),
-                  itemCount: notes.length,
-                  itemBuilder: (context, index) {
-                    final note = notes[index];
-                    return _NoteCard(
-                      note: note,
-                      onEdit: () => _openNoteDialog(context, ref, note: note),
+                  error: (error, stack) => Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.error_outline,
+                            size: 48, color: Color(0xFFEF4444)),
+                        const SizedBox(height: 12),
+                        const Text('Error al cargar notas',
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600)),
+                        const SizedBox(height: 4),
+                        Text(
+                          error.toString(),
+                          style: const TextStyle(
+                              color: Color(0xFF94A3B8), fontSize: 12),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 16),
+                        TextButton.icon(
+                          onPressed: () =>
+                              ref.read(noteListProvider.notifier).refresh(),
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Reintentar'),
+                        ),
+                      ],
+                    ),
+                  ),
+                  data: (notes) {
+                    if (notes.isEmpty) {
+                      return _buildEmptyState(
+                        activeFilter,
+                        hasProjectFilter: selectedProjectFilter != null,
+                      );
+                    }
+                    return GridView.builder(
+                      gridDelegate:
+                          const SliverGridDelegateWithMaxCrossAxisExtent(
+                        maxCrossAxisExtent: 360,
+                        mainAxisExtent: 220,
+                        crossAxisSpacing: 14,
+                        mainAxisSpacing: 14,
+                      ),
+                      itemCount: notes.length,
+                      itemBuilder: (context, index) {
+                        final note = notes[index];
+                        return _NoteCard(
+                          note: note,
+                          onEdit: () =>
+                              _openNoteDialog(context, ref, note: note),
+                        );
+                      },
                     );
                   },
-                );
-              },
-            ),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 

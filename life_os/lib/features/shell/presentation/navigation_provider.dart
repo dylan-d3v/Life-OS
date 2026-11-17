@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 enum NavSection {
+  today,
   tasks,
   notes,
   calendar,
@@ -12,6 +13,8 @@ enum NavSection {
 extension NavSectionX on NavSection {
   String get title {
     switch (this) {
+      case NavSection.today:
+        return 'Hoy • Briefing';
       case NavSection.tasks:
         return 'Tareas';
       case NavSection.notes:
