@@ -135,19 +135,32 @@ class KevCommandBarNotifier extends Notifier<KevCommandBarState> {
         debugPrint('▶️ [PASO 4/4] Refrescando listas de la interfaz en tiempo real (${result.actionType})...');
         switch (result.actionType) {
           case 'create_task':
+          case 'update_task':
+          case 'delete_task':
             ref.invalidate(taskListProvider);
+            ref.invalidate(dailyBriefingProvider);
             break;
           case 'create_note':
+          case 'update_note':
+          case 'delete_note':
             ref.invalidate(noteListProvider);
             break;
           case 'create_project':
+          case 'update_project':
+          case 'delete_project':
             ref.invalidate(projectListProvider);
+            ref.invalidate(taskListProvider);
+            ref.invalidate(noteListProvider);
             break;
           case 'create_calendar_event':
+          case 'update_calendar_event':
+          case 'delete_calendar_event':
             ref.invalidate(calendarEventListProvider);
+            ref.invalidate(dailyBriefingProvider);
             break;
           case 'log_finance':
             ref.invalidate(financeTransactionListProvider);
+            ref.invalidate(dailyBriefingProvider);
             break;
         }
       }
