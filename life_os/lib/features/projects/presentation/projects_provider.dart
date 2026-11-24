@@ -48,7 +48,7 @@ class ProjectListNotifier extends AsyncNotifier<List<ProjectItem>> {
   Future<List<ProjectItem>> build() => _loadProjects();
 
   Future<List<ProjectItem>> _loadProjects() async {
-    final repo = ref.read(projectRepositoryProvider);
+    final repo = ref.watch(projectRepositoryProvider);
     return repo.fetchProjects();
   }
 

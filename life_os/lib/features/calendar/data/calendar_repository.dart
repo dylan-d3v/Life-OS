@@ -78,17 +78,27 @@ class CalendarRepository {
         .order('start_time', ascending: true);
 
     final events = <CalendarEventItem>[];
+    Object? lastDecryptError;
+
     for (final row in rows) {
-      final encryptedString = row['encrypted_data'] as String;
-      final payload = EncryptedPayload.deserialize(encryptedString);
-      final decryptedFields = await encryptionService.decryptJson(
-        payload,
-        vault.activeKey,
-      );
-      events.add(CalendarEventItem.fromDecryptedMap(
-        row: row,
-        decryptedFields: decryptedFields,
-      ));
+      try {
+        final encryptedString = row['encrypted_data'] as String;
+        final payload = EncryptedPayload.deserialize(encryptedString);
+        final decryptedFields = await encryptionService.decryptJson(
+          payload,
+          vault.activeKey,
+        );
+        events.add(CalendarEventItem.fromDecryptedMap(
+          row: row,
+          decryptedFields: decryptedFields,
+        ));
+      } catch (e) {
+        lastDecryptError = e;
+      }
+    }
+
+    if (rows.isNotEmpty && events.isEmpty && lastDecryptError != null) {
+      throw lastDecryptError;
     }
 
     return events;

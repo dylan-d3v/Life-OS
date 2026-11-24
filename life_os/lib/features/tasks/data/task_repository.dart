@@ -75,17 +75,28 @@ class TaskRepository {
         .order('created_at', ascending: false);
 
     final tasks = <TaskItem>[];
+    Object? lastDecryptError;
+
     for (final row in rows) {
-      final encryptedString = row['encrypted_data'] as String;
-      final payload = EncryptedPayload.deserialize(encryptedString);
-      final decryptedFields = await encryptionService.decryptJson(
-        payload,
-        vault.activeKey,
-      );
-      tasks.add(TaskItem.fromDecryptedMap(
-        row: row,
-        decryptedFields: decryptedFields,
-      ));
+      try {
+        final encryptedString = row['encrypted_data'] as String;
+        final payload = EncryptedPayload.deserialize(encryptedString);
+        final decryptedFields = await encryptionService.decryptJson(
+          payload,
+          vault.activeKey,
+        );
+        tasks.add(TaskItem.fromDecryptedMap(
+          row: row,
+          decryptedFields: decryptedFields,
+        ));
+      } catch (e) {
+        // B1: Omitir fila incompatible sin bloquear las filas válidas.
+        lastDecryptError = e;
+      }
+    }
+
+    if (rows.isNotEmpty && tasks.isEmpty && lastDecryptError != null) {
+      throw lastDecryptError;
     }
 
     return tasks;

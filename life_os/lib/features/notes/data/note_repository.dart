@@ -72,17 +72,27 @@ class NoteRepository {
         .order('updated_at', ascending: false);
 
     final notes = <NoteItem>[];
+    Object? lastDecryptError;
+
     for (final row in rows) {
-      final encryptedString = row['encrypted_data'] as String;
-      final payload = EncryptedPayload.deserialize(encryptedString);
-      final decryptedFields = await encryptionService.decryptJson(
-        payload,
-        vault.activeKey,
-      );
-      notes.add(NoteItem.fromDecryptedMap(
-        row: row,
-        decryptedFields: decryptedFields,
-      ));
+      try {
+        final encryptedString = row['encrypted_data'] as String;
+        final payload = EncryptedPayload.deserialize(encryptedString);
+        final decryptedFields = await encryptionService.decryptJson(
+          payload,
+          vault.activeKey,
+        );
+        notes.add(NoteItem.fromDecryptedMap(
+          row: row,
+          decryptedFields: decryptedFields,
+        ));
+      } catch (e) {
+        lastDecryptError = e;
+      }
+    }
+
+    if (rows.isNotEmpty && notes.isEmpty && lastDecryptError != null) {
+      throw lastDecryptError;
     }
 
     return notes;

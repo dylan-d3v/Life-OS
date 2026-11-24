@@ -72,7 +72,7 @@ class NoteListNotifier extends AsyncNotifier<List<NoteItem>> {
   Future<List<NoteItem>> build() => _loadNotes();
 
   Future<List<NoteItem>> _loadNotes() async {
-    final repo = ref.read(noteRepositoryProvider);
+    final repo = ref.watch(noteRepositoryProvider);
     return repo.fetchNotes();
   }
 

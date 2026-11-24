@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:life_os/core/crypto/crypto.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   group('EncryptedPayload Tests', () {
@@ -204,6 +205,58 @@ void main() {
 
       expect(decryptedData['title'], equals('Comprar panel solar para asistente ESP32'));
       expect(decryptedData['priority'], equals(3));
+    });
+
+    test('Persistencia segura en Keystore local (B2): guarda, restaura y limpia la clave derivada y maestra', () async {
+      SharedPreferences.setMockInitialValues({});
+      const masterPass = 'ClaveMaestraPersistente#2026';
+      const userEmail = 'dylan@lifeos.app';
+
+      final derivedKey = await vault.deriveKeyFromPassword(
+        masterPassword: masterPass,
+        salt: salt,
+      );
+      final originalBytes = await derivedKey.extractBytes();
+
+      await vault.persistSessionToKeystore(
+        key: derivedKey,
+        masterPassword: masterPass,
+        userEmail: userEmail,
+      );
+
+      // Simulamos cierre y reapertura de la aplicación con una nueva instancia de KeyVaultService
+      final newVaultSession = KeyVaultService();
+      expect(newVaultSession.isUnlocked, isFalse);
+
+      // Si otro correo intenta restaurar, debe rechazarse
+      final wrongUserRestore = await newVaultSession.restoreSessionFromKeystore(
+        expectedEmail: 'otro@lifeos.app',
+      );
+      expect(wrongUserRestore, isFalse);
+      expect(newVaultSession.isUnlocked, isFalse);
+
+      // Con el correo correcto, restaura automáticamente la clave derivada y la contraseña maestra para inspección
+      final restored = await newVaultSession.restoreSessionFromKeystore(
+        expectedEmail: userEmail,
+      );
+      expect(restored, isTrue);
+      expect(newVaultSession.isUnlocked, isTrue);
+      expect(newVaultSession.activeMasterPassword, equals(masterPass));
+      expect(
+        newVaultSession.activeDerivedKeyBase64,
+        equals(base64Encode(originalBytes)),
+      );
+      expect(await newVaultSession.activeKey.extractBytes(), equals(originalBytes));
+
+      // Al cerrar sesión explícitamente, se limpia del keystore y no se puede volver a restaurar
+      await newVaultSession.clearPersistedKeystore();
+      newVaultSession.lockVault(clearPersisted: true);
+
+      final thirdVault = KeyVaultService();
+      expect(
+        await thirdVault.restoreSessionFromKeystore(expectedEmail: userEmail),
+        isFalse,
+      );
     });
   });
 }

@@ -167,6 +167,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                   TextFormField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
+                    autocorrect: false,
+                    enableSuggestions: false,
+                    textCapitalization: TextCapitalization.none,
                     style: const TextStyle(color: Colors.white),
                     decoration: InputDecoration(
                       labelText: 'Correo Electrónico',
@@ -193,6 +196,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                   TextFormField(
                     controller: _passwordController,
                     obscureText: _obscurePassword,
+                    autocorrect: false,
+                    enableSuggestions: false,
+                    textCapitalization: TextCapitalization.none,
                     style: const TextStyle(color: Colors.white),
                     decoration: InputDecoration(
                       labelText: 'Contraseña de Cuenta',
@@ -230,6 +236,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                   TextFormField(
                     controller: _masterKeyController,
                     obscureText: _obscureMasterKey,
+                    autocorrect: false,
+                    enableSuggestions: false,
+                    textCapitalization: TextCapitalization.none,
                     style: const TextStyle(color: Colors.white),
                     decoration: InputDecoration(
                       labelText: 'Contraseña Maestra E2EE',

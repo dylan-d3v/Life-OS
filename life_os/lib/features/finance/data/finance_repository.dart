@@ -77,17 +77,27 @@ class FinanceRepository {
         .order('transaction_date', ascending: false);
 
     final transactions = <FinanceTransactionItem>[];
+    Object? lastDecryptError;
+
     for (final row in rows) {
-      final encryptedString = row['encrypted_data'] as String;
-      final payload = EncryptedPayload.deserialize(encryptedString);
-      final decryptedFields = await encryptionService.decryptJson(
-        payload,
-        vault.activeKey,
-      );
-      transactions.add(FinanceTransactionItem.fromDecryptedMap(
-        row: row,
-        decryptedFields: decryptedFields,
-      ));
+      try {
+        final encryptedString = row['encrypted_data'] as String;
+        final payload = EncryptedPayload.deserialize(encryptedString);
+        final decryptedFields = await encryptionService.decryptJson(
+          payload,
+          vault.activeKey,
+        );
+        transactions.add(FinanceTransactionItem.fromDecryptedMap(
+          row: row,
+          decryptedFields: decryptedFields,
+        ));
+      } catch (e) {
+        lastDecryptError = e;
+      }
+    }
+
+    if (rows.isNotEmpty && transactions.isEmpty && lastDecryptError != null) {
+      throw lastDecryptError;
     }
 
     return transactions;

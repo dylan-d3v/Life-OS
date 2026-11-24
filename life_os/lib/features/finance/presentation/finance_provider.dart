@@ -46,7 +46,7 @@ class FinanceTransactionListNotifier
   Future<List<FinanceTransactionItem>> build() => _loadTransactions();
 
   Future<List<FinanceTransactionItem>> _loadTransactions() async {
-    final repo = ref.read(financeRepositoryProvider);
+    final repo = ref.watch(financeRepositoryProvider);
     return repo.fetchTransactions();
   }
 

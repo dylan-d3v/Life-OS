@@ -66,17 +66,27 @@ class ProjectRepository {
         .order('created_at', ascending: false);
 
     final projects = <ProjectItem>[];
+    Object? lastDecryptError;
+
     for (final row in rows) {
-      final encryptedString = row['encrypted_data'] as String;
-      final payload = EncryptedPayload.deserialize(encryptedString);
-      final decryptedFields = await encryptionService.decryptJson(
-        payload,
-        vault.activeKey,
-      );
-      projects.add(ProjectItem.fromDecryptedMap(
-        row: row,
-        decryptedFields: decryptedFields,
-      ));
+      try {
+        final encryptedString = row['encrypted_data'] as String;
+        final payload = EncryptedPayload.deserialize(encryptedString);
+        final decryptedFields = await encryptionService.decryptJson(
+          payload,
+          vault.activeKey,
+        );
+        projects.add(ProjectItem.fromDecryptedMap(
+          row: row,
+          decryptedFields: decryptedFields,
+        ));
+      } catch (e) {
+        lastDecryptError = e;
+      }
+    }
+
+    if (rows.isNotEmpty && projects.isEmpty && lastDecryptError != null) {
+      throw lastDecryptError;
     }
 
     return projects;

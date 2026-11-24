@@ -158,7 +158,7 @@ class CalendarEventListNotifier
   Future<List<CalendarEventItem>> build() => _loadEvents();
 
   Future<List<CalendarEventItem>> _loadEvents() async {
-    final repo = ref.read(calendarRepositoryProvider);
+    final repo = ref.watch(calendarRepositoryProvider);
     return repo.fetchEvents();
   }
 

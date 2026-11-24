@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:window_manager/window_manager.dart';
 
+import 'core/crypto/crypto.dart';
 import 'core/providers/crypto_providers.dart';
 import 'core/providers/supabase_providers.dart';
 import 'features/auth/presentation/auth_controller.dart';
@@ -26,27 +27,38 @@ Future<void> main() async {
     supabaseUrl = supabaseUrl.substring(0, supabaseUrl.length - 1);
   }
   if (supabaseUrl.endsWith('/rest/v1')) {
-    supabaseUrl = supabaseUrl.substring(0, supabaseUrl.length - 8);
+    supabaseUrl = supabaseUrl.substring(0, supabaseUrl.length - '/rest/v1'.length);
   }
 
-  if (supabaseUrl.isEmpty || supabaseAnonKey.isEmpty) {
-    debugPrint('ADVERTENCIA: SUPABASE_URL o SUPABASE_ANON_KEY no están definidos en .env');
+  // 2. Inicializar cliente de Supabase y restaurar bóveda cifrada local (B2)
+  final initialVault = KeyVaultService();
+  KeyVaultNotifier.initialInstance = initialVault;
+
+  if (supabaseUrl.isNotEmpty &&
+      supabaseAnonKey.isNotEmpty &&
+      !supabaseUrl.contains('your-project-id')) {
+    await Supabase.initialize(
+      url: supabaseUrl,
+      // ignore: deprecated_member_use
+      anonKey: supabaseAnonKey,
+    );
+    final currentEmail = Supabase.instance.client.auth.currentUser?.email;
+    await initialVault.restoreSessionFromKeystore(expectedEmail: currentEmail);
+  } else {
+    await initialVault.restoreSessionFromKeystore();
   }
 
-  // 2. Inicializar Supabase
-  await Supabase.initialize(
-    url: supabaseUrl,
-    publishableKey: supabaseAnonKey,
-  );
-
-  // 3. Configurar ventana de escritorio en Windows/Desktop
+  // 3. Configurar ventana nativa en escritorio (Windows / macOS / Linux)
   if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
     await windowManager.ensureInitialized();
     const windowOptions = WindowOptions(
-      size: Size(1200, 800),
-      minimumSize: Size(900, 600),
+      size: Size(1280, 800),
+      minimumSize: Size(960, 640),
       center: true,
-      title: 'Life-OS • Segundo Cerebro',
+      backgroundColor: Color(0xFF0F172A),
+      skipTaskbar: false,
+      titleBarStyle: TitleBarStyle.normal,
+      title: 'Life-OS — Ecosistema Personal E2EE',
     );
     windowManager.waitUntilReadyToShow(windowOptions, () async {
       await windowManager.show();
@@ -85,6 +97,10 @@ class LifeOSApp extends ConsumerWidget {
         data: (authState) {
           final user = authState.session?.user ??
               ref.watch(supabaseClientProvider)?.auth.currentUser;
+          // Si hay usuario autenticado pero la bóveda aún no intentó restaurarse en memoria, restaurar del keystore
+          if (user != null && !vault.isUnlocked && !vault.restoreAttempted) {
+            vault.restoreSessionFromKeystore(expectedEmail: user.email);
+          }
           // El usuario solo accede si tiene sesión en Supabase y la bóveda E2EE está desbloqueada
           if (user != null && vault.isUnlocked) {
             return const AdaptiveScaffold();
@@ -94,6 +110,9 @@ class LifeOSApp extends ConsumerWidget {
         loading: () {
           final directUser =
               ref.watch(supabaseClientProvider)?.auth.currentUser;
+          if (directUser != null && !vault.isUnlocked && !vault.restoreAttempted) {
+            vault.restoreSessionFromKeystore(expectedEmail: directUser.email);
+          }
           if (directUser != null && vault.isUnlocked) {
             return const AdaptiveScaffold();
           }

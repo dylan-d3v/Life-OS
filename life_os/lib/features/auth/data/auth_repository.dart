@@ -57,9 +57,19 @@ class AuthRepository {
 
     final response = results[0] as AuthResponse;
     final derivedKey = results[1] as crypto.SecretKey;
+    final keyBytes = await derivedKey.extractBytes();
 
-    // Activar clave y notificar a Riverpod reactivamente
-    vault.setActiveKey(derivedKey);
+    // Activar clave, persistir en el keystore seguro y notificar a Riverpod reactivamente
+    vault.setActiveKey(
+      derivedKey,
+      masterPassword: masterKeyPassword,
+      derivedKeyBase64: base64Encode(keyBytes),
+    );
+    await vault.persistSessionToKeystore(
+      key: derivedKey,
+      masterPassword: masterKeyPassword,
+      userEmail: email,
+    );
 
     return response;
   }
@@ -90,8 +100,18 @@ class AuthRepository {
 
     final response = results[0] as AuthResponse;
     final derivedKey = results[1] as crypto.SecretKey;
+    final keyBytes = await derivedKey.extractBytes();
 
-    vault.setActiveKey(derivedKey);
+    vault.setActiveKey(
+      derivedKey,
+      masterPassword: masterKeyPassword,
+      derivedKeyBase64: base64Encode(keyBytes),
+    );
+    await vault.persistSessionToKeystore(
+      key: derivedKey,
+      masterPassword: masterKeyPassword,
+      userEmail: email,
+    );
 
     return response;
   }
@@ -106,12 +126,23 @@ class AuthRepository {
       masterPassword: masterKeyPassword,
       salt: salt,
     );
-    vault.setActiveKey(derivedKey);
+    final keyBytes = await derivedKey.extractBytes();
+    vault.setActiveKey(
+      derivedKey,
+      masterPassword: masterKeyPassword,
+      derivedKeyBase64: base64Encode(keyBytes),
+    );
+    await vault.persistSessionToKeystore(
+      key: derivedKey,
+      masterPassword: masterKeyPassword,
+      userEmail: email,
+    );
   }
 
-  /// Cierra sesión en Supabase y destruye la clave de memoria en la bóveda.
+  /// Cierra sesión en Supabase, limpia el keystore local y destruye la clave de memoria en la bóveda.
   Future<void> signOut() async {
-    vault.lockVault();
+    await vault.clearPersistedKeystore();
+    vault.lockVault(clearPersisted: true);
     await client?.auth.signOut();
   }
 }

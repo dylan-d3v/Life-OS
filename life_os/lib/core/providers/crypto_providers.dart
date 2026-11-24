@@ -9,7 +9,10 @@ final encryptionServiceProvider = Provider<EncryptionService>((ref) {
 /// Notificador de Riverpod para la bóveda criptográfica.
 /// Invalida y notifica reactivamente a los observadores cuando la clave activa cambia.
 class KeyVaultNotifier extends Notifier<KeyVaultService> {
-  late final KeyVaultService _vault = KeyVaultService();
+  /// Instancia pre-inicializada opcionalmente durante el arranque en `main()`.
+  static KeyVaultService? initialInstance;
+
+  late final KeyVaultService _vault = initialInstance ?? KeyVaultService();
 
   @override
   KeyVaultService build() {

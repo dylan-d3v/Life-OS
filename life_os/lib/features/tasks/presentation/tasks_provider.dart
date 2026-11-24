@@ -188,7 +188,7 @@ class TaskListNotifier extends AsyncNotifier<List<TaskItem>> {
   Future<List<TaskItem>> build() => _loadTasks();
 
   Future<List<TaskItem>> _loadTasks() async {
-    final repo = ref.read(taskRepositoryProvider);
+    final repo = ref.watch(taskRepositoryProvider);
     return repo.fetchTasks();
   }
 
