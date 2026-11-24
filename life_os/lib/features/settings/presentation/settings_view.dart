@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/backup/backup_service.dart';
+import '../../../core/notifications/notification_service.dart';
 import '../../../core/providers/crypto_providers.dart';
 import '../../ai/presentation/ai_providers.dart';
 import '../../ai/presentation/kev_command_bar_controller.dart';
@@ -352,6 +353,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
     final authRepo = ref.watch(authRepositoryProvider);
     final appSettings = ref.watch(appSettingsProvider);
     final currentBundle = ref.watch(currentAccountBackupBundleProvider);
+    final notifService = ref.watch(notificationCoordinatorProvider);
     final user = authRepo.currentUser;
     final masterPassword = vault.activeMasterPassword;
     final derivedKeyBase64 = vault.activeDerivedKeyBase64;
@@ -770,7 +772,236 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
             ),
             const SizedBox(height: 20),
 
-            // ── 3. RESPALDO, EXPORTACIÓN E IMPORTACIÓN DE DATOS (G1) ──
+            // ── 3. NOTIFICACIONES Y RECORDATORIOS (E1 + F1 Parte 2) ──
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1E293B),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFF334155)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 8,
+                    alignment: WrapAlignment.spaceBetween,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.notifications_active_outlined,
+                              size: 18, color: Color(0xFF38BDF8)),
+                          SizedBox(width: 8),
+                          Flexible(
+                            child: Text(
+                              'Notificaciones y Recordatorios Locales',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF0F172A),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFF334155)),
+                        ),
+                        child: Text(
+                          '${notifService.scheduledReminders.length} recordatorios programados',
+                          style: const TextStyle(
+                            color: Color(0xFF38BDF8),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Activar notificaciones de tareas y eventos',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            SizedBox(height: 2),
+                            Text(
+                              'Programa alertas locales sin exponer tus títulos cifrados a servidores externos.',
+                              style: TextStyle(
+                                color: Color(0xFF94A3B8),
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Switch(
+                        key: const Key('notifications_enabled_switch'),
+                        value: appSettings.notificationsEnabled,
+                        activeTrackColor: const Color(0xFF0284C7),
+                        onChanged: (enabled) {
+                          ref
+                              .read(appSettingsProvider.notifier)
+                              .setNotificationsEnabled(enabled);
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  const Divider(color: Color(0xFF334155), height: 1),
+                  const SizedBox(height: 12),
+
+                  // Hora del recordatorio / resumen diario
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 8,
+                    alignment: WrapAlignment.spaceBetween,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      const Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Horario de aviso y resumen diario de tareas',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          SizedBox(height: 2),
+                          Text(
+                            'Hora a la que recibirás el recordatorio matutino de tus pendientes.',
+                            style: TextStyle(
+                              color: Color(0xFF94A3B8),
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                      OutlinedButton.icon(
+                        key: const Key('daily_reminder_time_button'),
+                        onPressed: !appSettings.notificationsEnabled
+                            ? null
+                            : () async {
+                                final picked = await showTimePicker(
+                                  context: context,
+                                  initialTime: TimeOfDay(
+                                    hour: appSettings.dailyReminderHour,
+                                    minute: appSettings.dailyReminderMinute,
+                                  ),
+                                );
+                                if (picked != null) {
+                                  await ref
+                                      .read(appSettingsProvider.notifier)
+                                      .setDailyReminderTime(
+                                        picked.hour,
+                                        picked.minute,
+                                      );
+                                }
+                              },
+                        icon: const Icon(Icons.access_time_rounded, size: 16),
+                        label: Text(appSettings.formattedReminderTime),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFF38BDF8),
+                          side: const BorderSide(color: Color(0xFF334155)),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+
+                  // Selección de tono de notificación
+                  const Text(
+                    'Tono de notificación:',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final entry in const [
+                        ('default', 'Estándar'),
+                        ('chime', 'Campana Suave'),
+                        ('urgent', 'Alerta Prioritaria'),
+                        ('silent', 'Silencioso'),
+                      ])
+                        ChoiceChip(
+                          key: Key('tone_chip_${entry.$1}'),
+                          label: Text(entry.$2),
+                          selected: appSettings.notificationTone == entry.$1,
+                          selectedColor: const Color(0xFF0284C7),
+                          backgroundColor: const Color(0xFF0F172A),
+                          labelStyle: TextStyle(
+                            color: appSettings.notificationTone == entry.$1
+                                ? Colors.white
+                                : const Color(0xFF94A3B8),
+                            fontSize: 12,
+                          ),
+                          onSelected: !appSettings.notificationsEnabled
+                              ? null
+                              : (_) {
+                                  ref
+                                      .read(appSettingsProvider.notifier)
+                                      .setNotificationTone(entry.$1);
+                                },
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  OutlinedButton.icon(
+                    key: const Key('test_notification_button'),
+                    onPressed: !appSettings.notificationsEnabled
+                        ? null
+                        : () {
+                            final triggered =
+                                notifService.triggerTestNotification();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                    '${triggered.title}: ${triggered.body}'),
+                                backgroundColor: const Color(0xFF0284C7),
+                              ),
+                            );
+                          },
+                    icon: const Icon(Icons.notifications_none_rounded, size: 16),
+                    label: const Text('Probar Notificación Ahora'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF38BDF8),
+                      side: const BorderSide(color: Color(0xFF334155)),
+                      textStyle: const TextStyle(fontSize: 12),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // ── 4. RESPALDO, EXPORTACIÓN E IMPORTACIÓN DE DATOS (G1) ──
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(

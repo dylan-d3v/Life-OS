@@ -76,5 +76,12 @@ void main() {
     expect(find.text('Respaldo y Soberanía de Datos'), findsOneWidget);
     expect(find.byKey(const Key('export_backup_button')), findsOneWidget);
     expect(find.byKey(const Key('open_import_backup_dialog_button')), findsOneWidget);
+
+    // Fase 5 (E1 + F1 Parte 2): Verificar controles de Notificaciones y Recordatorios
+    expect(find.text('Notificaciones y Recordatorios Locales'), findsOneWidget);
+    expect(find.byKey(const Key('notifications_enabled_switch')), findsOneWidget);
+    expect(find.byKey(const Key('daily_reminder_time_button')), findsOneWidget);
+    expect(find.byKey(const Key('tone_chip_chime')), findsOneWidget);
+    expect(find.byKey(const Key('test_notification_button')), findsOneWidget);
   });
 }

@@ -158,7 +158,7 @@ class ProjectsView extends ConsumerWidget {
                   gridDelegate:
                       const SliverGridDelegateWithMaxCrossAxisExtent(
                     maxCrossAxisExtent: 400,
-                    mainAxisExtent: 250,
+                    mainAxisExtent: 266,
                     crossAxisSpacing: 16,
                     mainAxisSpacing: 16,
                   ),
