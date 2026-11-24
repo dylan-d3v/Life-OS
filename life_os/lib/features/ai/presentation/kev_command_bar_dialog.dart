@@ -26,6 +26,7 @@ class KevCommandBarDialog extends ConsumerStatefulWidget {
 class _KevCommandBarDialogState extends ConsumerState<KevCommandBarDialog> {
   late final TextEditingController _controller;
   late final FocusNode _focusNode;
+  bool _manualShowSuggestions = false;
 
   @override
   void initState() {
@@ -47,63 +48,110 @@ class _KevCommandBarDialogState extends ConsumerState<KevCommandBarDialog> {
 
     ref.read(kevCommandBarProvider.notifier).executePrompt(text);
     _controller.clear();
+    if (_manualShowSuggestions) {
+      setState(() => _manualShowSuggestions = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(kevCommandBarProvider);
+    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+    final screenSize = MediaQuery.sizeOf(context);
 
-    return Dialog(
-      backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 48),
-      alignment: Alignment.topCenter,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 680),
-        child: Container(
-          decoration: BoxDecoration(
-            color: const Color(0xFF1E293B), // Slate 800
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFF334155), width: 1.5),
-            boxShadow: const [
-              BoxShadow(
-                color: Colors.black45,
-                blurRadius: 28,
-                offset: Offset(0, 14),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final effectiveWidth = constraints.maxWidth.isFinite
+            ? constraints.maxWidth
+            : screenSize.width;
+        final effectiveHeight = constraints.maxHeight.isFinite
+            ? constraints.maxHeight
+            : (screenSize.height - bottomInset);
+
+        final isMobileScreen = effectiveWidth < 650 || screenSize.width < 650;
+        final isKeyboardOpen =
+            bottomInset > 80 || (isMobileScreen && effectiveHeight < 520);
+        final availableHeight = effectiveHeight - bottomInset;
+
+        // A1 + A2:
+        // - Mostrar sugerencias automáticamente solo si el usuario no ha completado el onboarding
+        //   y no tiene resultados/historial activos (o si pulsó explícitamente el botón de ayuda '?').
+        // - En móvil con el teclado abierto (o poco espacio vertical disponible), ocultar sugerencias
+        //   predeterminadas automáticamente para que no se superpongan ni desborden.
+        final shouldShowSuggestions = _manualShowSuggestions ||
+            (!state.hasCompletedOnboarding &&
+                state.lastResult == null &&
+                state.history.isEmpty &&
+                !(isKeyboardOpen && (isMobileScreen || availableHeight < 460)));
+
+        final showDesktopFooter = !isMobileScreen && !isKeyboardOpen;
+
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: EdgeInsets.symmetric(
+            horizontal: isMobileScreen ? 16 : 24,
+            vertical: isKeyboardOpen ? 12 : (isMobileScreen ? 24 : 48),
+          ),
+          alignment: Alignment.topCenter,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: 680,
+              maxHeight: availableHeight > 220 ? availableHeight - 24 : 220,
+            ),
+            child: Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFF1E293B), // Slate 800
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFF334155), width: 1.5),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Colors.black45,
+                    blurRadius: 28,
+                    offset: Offset(0, 14),
+                  ),
+                ],
               ),
-            ],
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // 1. Encabezado de la barra
+                  _buildHeader(context),
+
+                  const Divider(color: Color(0xFF334155), height: 1),
+
+                  // 2. Campo de entrada principal
+                  _buildInputField(state.isProcessing),
+
+                  // 3. Cuerpo adaptable y desplazable (Resultado, Sugerencias, Historial)
+                  Flexible(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          if (state.lastResult != null)
+                            _buildResultCard(state.lastResult!),
+                          if (shouldShowSuggestions) _buildQuickSuggestions(),
+                          if (state.history.isNotEmpty &&
+                              !(isKeyboardOpen && availableHeight < 360))
+                            _buildHistorySection(state.history),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  if (showDesktopFooter) ...[
+                    const Divider(color: Color(0xFF334155), height: 1),
+                    // 6. Pie con atajos de teclado
+                    _buildFooter(),
+                  ],
+                ],
+              ),
+            ),
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // 1. Encabezado de la barra
-              _buildHeader(context),
-
-              const Divider(color: Color(0xFF334155), height: 1),
-
-              // 2. Campo de entrada principal
-              _buildInputField(state.isProcessing),
-
-              // 3. Tarjeta de resultado reciente
-              if (state.lastResult != null)
-                _buildResultCard(state.lastResult!),
-
-              // 4. Sugerencias rápidas cuando no hay resultado
-              if (state.lastResult == null && state.history.isEmpty)
-                _buildQuickSuggestions(),
-
-              // 5. Historial reciente
-              if (state.history.isNotEmpty)
-                _buildHistorySection(state.history),
-
-              const Divider(color: Color(0xFF334155), height: 1),
-
-              // 6. Pie con atajos de teclado
-              _buildFooter(),
-            ],
-          ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -140,12 +188,15 @@ class _KevCommandBarDialogState extends ConsumerState<KevCommandBarDialog> {
                       ),
                     ),
                     const SizedBox(width: 10),
-                    const Text(
-                      'Kev AI Assistant',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
+                    const Flexible(
+                      child: Text(
+                        'Kev AI Assistant',
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ],
@@ -175,14 +226,17 @@ class _KevCommandBarDialogState extends ConsumerState<KevCommandBarDialog> {
                             : const Color(0xFFFBBF24),
                       ),
                       const SizedBox(width: 4),
-                      Text(
-                        activeProviderName,
-                        style: TextStyle(
-                          color: isGroq
-                              ? const Color(0xFF34D399)
-                              : const Color(0xFFFBBF24),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
+                      Flexible(
+                        child: Text(
+                          activeProviderName,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: isGroq
+                                ? const Color(0xFF34D399)
+                                : const Color(0xFFFBBF24),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     ],
@@ -207,6 +261,20 @@ class _KevCommandBarDialogState extends ConsumerState<KevCommandBarDialog> {
                 ),
               ],
             ),
+          ),
+          IconButton(
+            key: const Key('kev_toggle_suggestions_button'),
+            tooltip: 'Ver sugerencias de comandos',
+            icon: Icon(
+              Icons.help_outline_rounded,
+              size: 18,
+              color: _manualShowSuggestions
+                  ? const Color(0xFF38BDF8)
+                  : const Color(0xFF94A3B8),
+            ),
+            onPressed: () {
+              setState(() => _manualShowSuggestions = !_manualShowSuggestions);
+            },
           ),
           IconButton(
             tooltip: 'Cerrar [Esc]',

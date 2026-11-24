@@ -237,5 +237,45 @@ void main() {
     final state = container.read(kevCommandBarProvider);
     expect(state.errorMessage, contains('Por favor, escribe una instrucción'));
   });
+
+  testWidgets(
+      'KevCommandBarDialog oculta sugerencias automáticamente al abrirse el teclado virtual en móvil y permite alternarlas con el botón de ayuda (A1, A2)',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(360, 720));
+    tester.view.physicalSize = const Size(360, 720);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() async {
+      await tester.binding.setSurfaceSize(null);
+      tester.view.resetPhysicalSize();
+    });
+
+    await tester.pumpWidget(
+      const ProviderScope(
+        child: MaterialApp(
+          home: MediaQuery(
+            data: MediaQueryData(
+              size: Size(360, 720),
+              // Simulamos teclado virtual abierto ocupando 300px inferiores
+              viewInsets: EdgeInsets.only(bottom: 300),
+            ),
+            child: Scaffold(
+              body: KevCommandBarDialog(),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // A2: Con el teclado abierto en móvil, las sugerencias predeterminadas y el pie de atajos físicos se ocultan
+    expect(find.text('Sugerencias de órdenes:'), findsNothing);
+    expect(find.text('Enter'), findsNothing);
+
+    // A1: Si el usuario pulsa explícitamente el botón de ayuda '?', puede ver las sugerencias en un contenedor desplazable sin overflow
+    await tester.tap(find.byKey(const Key('kev_toggle_suggestions_button')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Sugerencias de órdenes:'), findsOneWidget);
+  });
 }
 

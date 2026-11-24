@@ -511,80 +511,173 @@ class _TransactionCard extends ConsumerWidget {
           onTap: onEdit,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
-              children: [
-                // Icono representativo
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(icon, size: 18, color: color),
-                ),
-                const SizedBox(width: 14),
+            child: LayoutBuilder(
+              builder: (context, cardConstraints) {
+                final isCompact = cardConstraints.maxWidth < 560;
 
-                // Categoría y notas
-                Expanded(
-                  child: Column(
+                if (isCompact) {
+                  return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(
-                        item.category,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      if (item.notes.isNotEmpty) ...[
-                        const SizedBox(height: 2),
-                        Text(
-                          item.notes,
-                          style: const TextStyle(
-                            color: Color(0xFF94A3B8),
-                            fontSize: 12,
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: color.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(icon, size: 18, color: color),
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  item.category,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                if (item.notes.isNotEmpty) ...[
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    item.notes,
+                                    style: const TextStyle(
+                                      color: Color(0xFF94A3B8),
+                                      fontSize: 12,
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Text(
+                            formattedAmount,
+                            style: TextStyle(
+                              color: color,
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Padding(
+                        padding: const EdgeInsets.only(left: 46),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              DateFormat('dd/MM/yyyy')
+                                  .format(item.transactionDate),
+                              style: const TextStyle(
+                                color: Color(0xFF64748B),
+                                fontSize: 12,
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete_outline,
+                                  size: 18, color: Color(0xFF64748B)),
+                              tooltip: 'Eliminar transacción',
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                              splashRadius: 18,
+                              onPressed: () => _confirmDelete(context, ref),
+                            ),
+                          ],
                         ),
-                      ],
+                      ),
                     ],
-                  ),
-                ),
+                  );
+                }
 
-                // Fecha
-                Text(
-                  DateFormat('dd/MM/yyyy').format(item.transactionDate),
-                  style: const TextStyle(
-                    color: Color(0xFF64748B),
-                    fontSize: 12,
-                  ),
-                ),
-                const SizedBox(width: 16),
+                return Row(
+                  children: [
+                    // Icono representativo
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(icon, size: 18, color: color),
+                    ),
+                    const SizedBox(width: 14),
 
-                // Monto destacado
-                Text(
-                  formattedAmount,
-                  style: TextStyle(
-                    color: color,
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(width: 10),
+                    // Categoría y notas
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            item.category,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          if (item.notes.isNotEmpty) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              item.notes,
+                              style: const TextStyle(
+                                color: Color(0xFF94A3B8),
+                                fontSize: 12,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
 
-                // Botón eliminar
-                IconButton(
-                  icon: const Icon(Icons.delete_outline,
-                      size: 18, color: Color(0xFF64748B)),
-                  tooltip: 'Eliminar transacción',
-                  splashRadius: 18,
-                  onPressed: () => _confirmDelete(context, ref),
-                ),
-              ],
+                    // Fecha
+                    Text(
+                      DateFormat('dd/MM/yyyy').format(item.transactionDate),
+                      style: const TextStyle(
+                        color: Color(0xFF64748B),
+                        fontSize: 12,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+
+                    // Monto destacado
+                    Text(
+                      formattedAmount,
+                      style: TextStyle(
+                        color: color,
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+
+                    // Botón eliminar
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline,
+                          size: 18, color: Color(0xFF64748B)),
+                      tooltip: 'Eliminar transacción',
+                      splashRadius: 18,
+                      onPressed: () => _confirmDelete(context, ref),
+                    ),
+                  ],
+                );
+              },
             ),
           ),
         ),

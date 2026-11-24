@@ -337,7 +337,7 @@ class _ProjectCard extends ConsumerWidget {
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
                               ),
-                              maxLines: 1,
+                              maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),

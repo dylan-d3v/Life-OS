@@ -527,7 +527,7 @@ class _NoteCard extends ConsumerWidget {
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
                         ),
-                        maxLines: 1,
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),

@@ -235,11 +235,13 @@ class CalendarView extends ConsumerWidget {
                             color: CalendarTheme.accentLight,
                           ),
                           SizedBox(width: 8),
-                          Text(
-                            'No tienes eventos registrados.',
-                            style: TextStyle(
-                              color: CalendarTheme.textSecondary,
-                              fontSize: 11,
+                          Expanded(
+                            child: Text(
+                              'No tienes eventos registrados.',
+                              style: TextStyle(
+                                color: CalendarTheme.textSecondary,
+                                fontSize: 11,
+                              ),
                             ),
                           ),
                         ],

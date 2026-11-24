@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../calendar/presentation/calendar_provider.dart';
 import '../../finance/presentation/finance_provider.dart';
 import '../../notes/presentation/notes_provider.dart';
@@ -27,12 +28,14 @@ class KevCommandBarState {
   final KevExecutionResult? lastResult;
   final List<KevCommandHistoryItem> history;
   final String? errorMessage;
+  final bool hasCompletedOnboarding;
 
   const KevCommandBarState({
     this.isProcessing = false,
     this.lastResult,
     this.history = const [],
     this.errorMessage,
+    this.hasCompletedOnboarding = false,
   });
 
   KevCommandBarState copyWith({
@@ -41,20 +44,56 @@ class KevCommandBarState {
     List<KevCommandHistoryItem>? history,
     String? errorMessage,
     bool clearLastResult = false,
+    bool? hasCompletedOnboarding,
   }) {
     return KevCommandBarState(
       isProcessing: isProcessing ?? this.isProcessing,
       lastResult: clearLastResult ? null : (lastResult ?? this.lastResult),
       history: history ?? this.history,
       errorMessage: errorMessage,
+      hasCompletedOnboarding:
+          hasCompletedOnboarding ?? this.hasCompletedOnboarding,
     );
   }
 }
 
-/// Notifier que orquesta la ejecución interactiva desde la barra de comandos Desktop.
+/// Notifier que orquesta la ejecución interactiva desde la barra de comandos.
 class KevCommandBarNotifier extends Notifier<KevCommandBarState> {
+  static const String kOnboardingPrefKey = 'kev_onboarding_completed_v1';
+
   @override
-  KevCommandBarState build() => const KevCommandBarState();
+  KevCommandBarState build() {
+    _loadOnboardingFlag();
+    return const KevCommandBarState();
+  }
+
+  Future<void> _loadOnboardingFlag() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final done = prefs.getBool(kOnboardingPrefKey) ?? false;
+      if (done != state.hasCompletedOnboarding) {
+        state = state.copyWith(hasCompletedOnboarding: done);
+      }
+    } catch (_) {}
+  }
+
+  /// Marca el onboarding de Kev como completado tras ejecutar la primera orden.
+  Future<void> markOnboardingCompleted() async {
+    state = state.copyWith(hasCompletedOnboarding: true);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(kOnboardingPrefKey, true);
+    } catch (_) {}
+  }
+
+  /// Restablece la guía de sugerencias de bienvenida de Kev.
+  Future<void> resetOnboarding() async {
+    state = state.copyWith(hasCompletedOnboarding: false);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(kOnboardingPrefKey, false);
+    } catch (_) {}
+  }
 
   /// Interpreta la orden en lenguaje natural con el LLM y la despacha al
   /// repositorio criptográfico E2EE correspondiente.
@@ -126,7 +165,13 @@ class KevCommandBarNotifier extends Notifier<KevCommandBarState> {
         lastResult: result,
         history: [historyItem, ...state.history],
         errorMessage: result.success ? null : result.userMessage,
+        hasCompletedOnboarding:
+            result.success ? true : state.hasCompletedOnboarding,
       );
+
+      if (result.success) {
+        markOnboardingCompleted();
+      }
 
       return result;
     } catch (e) {

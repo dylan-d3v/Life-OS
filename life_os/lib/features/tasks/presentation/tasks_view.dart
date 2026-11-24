@@ -597,32 +597,36 @@ class _TaskCard extends ConsumerWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           // Checkbox
-                          GestureDetector(
-                            onTap: () => ref
-                                .read(taskListProvider.notifier)
-                                .toggleStatus(task.id),
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 180),
-                              width: 22,
-                              height: 22,
-                              decoration: BoxDecoration(
-                                color: isDone
-                                    ? const Color(0xFF22C55E)
-                                    : Colors.transparent,
-                                border: Border.all(
+                          Padding(
+                            padding: const EdgeInsets.only(top: 2),
+                            child: GestureDetector(
+                              onTap: () => ref
+                                  .read(taskListProvider.notifier)
+                                  .toggleStatus(task.id),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 180),
+                                width: 22,
+                                height: 22,
+                                decoration: BoxDecoration(
                                   color: isDone
                                       ? const Color(0xFF22C55E)
-                                      : const Color(0xFF64748B),
-                                  width: 2,
+                                      : Colors.transparent,
+                                  border: Border.all(
+                                    color: isDone
+                                        ? const Color(0xFF22C55E)
+                                        : const Color(0xFF64748B),
+                                    width: 2,
+                                  ),
+                                  borderRadius: BorderRadius.circular(6),
                                 ),
-                                borderRadius: BorderRadius.circular(6),
+                                child: isDone
+                                    ? const Icon(Icons.check,
+                                        size: 14, color: Colors.white)
+                                    : null,
                               ),
-                              child: isDone
-                                  ? const Icon(Icons.check,
-                                      size: 14, color: Colors.white)
-                                  : null,
                             ),
                           ),
                           const SizedBox(width: 10),
@@ -652,7 +656,7 @@ class _TaskCard extends ConsumerWidget {
                                         : TextDecoration.none,
                                   ),
                                   overflow: TextOverflow.ellipsis,
-                                  maxLines: 1,
+                                  maxLines: 3,
                                 ),
                                 if (task.notes.isNotEmpty) ...[
                                   const SizedBox(height: 2),
@@ -666,7 +670,7 @@ class _TaskCard extends ConsumerWidget {
                                           : TextDecoration.none,
                                     ),
                                     overflow: TextOverflow.ellipsis,
-                                    maxLines: 1,
+                                    maxLines: 2,
                                   ),
                                 ],
                               ],
@@ -757,7 +761,7 @@ class _TaskCard extends ConsumerWidget {
                                   : TextDecoration.none,
                             ),
                             overflow: TextOverflow.ellipsis,
-                            maxLines: 1,
+                            maxLines: 2,
                           ),
                           if (task.notes.isNotEmpty) ...[
                             const SizedBox(height: 2),
@@ -771,7 +775,7 @@ class _TaskCard extends ConsumerWidget {
                                     : TextDecoration.none,
                               ),
                               overflow: TextOverflow.ellipsis,
-                              maxLines: 1,
+                              maxLines: 2,
                             ),
                           ],
                         ],

@@ -236,6 +236,7 @@ class _CalendarEventDialogState extends ConsumerState<CalendarEventDialog> {
 
     return Dialog(
       backgroundColor: CalendarTheme.panelBg,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: const BorderSide(color: CalendarTheme.border, width: 1),
@@ -243,7 +244,7 @@ class _CalendarEventDialogState extends ConsumerState<CalendarEventDialog> {
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 480, maxHeight: 680),
         child: Padding(
-          padding: const EdgeInsets.all(22),
+          padding: const EdgeInsets.all(20),
           child: Form(
             key: _formKey,
             child: Column(
@@ -254,30 +255,35 @@ class _CalendarEventDialogState extends ConsumerState<CalendarEventDialog> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(
-                            color: CalendarTheme.accentMuted,
-                            borderRadius: BorderRadius.circular(6),
+                    Expanded(
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: CalendarTheme.accentMuted,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Icon(
+                              Icons.lock_outline_rounded,
+                              size: 16,
+                              color: CalendarTheme.accentLight,
+                            ),
                           ),
-                          child: const Icon(
-                            Icons.lock_outline_rounded,
-                            size: 16,
-                            color: CalendarTheme.accentLight,
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              dialogTitle,
+                              style: const TextStyle(
+                                color: CalendarTheme.textPrimary,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 10),
-                        Text(
-                          dialogTitle,
-                          style: const TextStyle(
-                            color: CalendarTheme.textPrimary,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                     IconButton(
                       icon: const Icon(Icons.close, size: 18, color: CalendarTheme.textSecondary),
@@ -405,9 +411,11 @@ class _CalendarEventDialogState extends ConsumerState<CalendarEventDialog> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text(
-                              'Evento de todo el día',
-                              style: TextStyle(color: CalendarTheme.textPrimary, fontSize: 13),
+                            const Expanded(
+                              child: Text(
+                                'Evento de todo el día',
+                                style: TextStyle(color: CalendarTheme.textPrimary, fontSize: 13),
+                              ),
                             ),
                             Switch(
                               value: _isAllDay,
@@ -447,10 +455,13 @@ class _CalendarEventDialogState extends ConsumerState<CalendarEventDialog> {
                                             const Icon(Icons.access_time_rounded,
                                                 size: 14, color: CalendarTheme.textSecondary),
                                             const SizedBox(width: 6),
-                                            Text(
-                                              _startTime.format(context),
-                                              style: const TextStyle(
-                                                  color: CalendarTheme.textPrimary, fontSize: 12),
+                                            Expanded(
+                                              child: Text(
+                                                _startTime.format(context),
+                                                overflow: TextOverflow.ellipsis,
+                                                style: const TextStyle(
+                                                    color: CalendarTheme.textPrimary, fontSize: 12),
+                                              ),
                                             ),
                                           ],
                                         ),
@@ -482,10 +493,13 @@ class _CalendarEventDialogState extends ConsumerState<CalendarEventDialog> {
                                             const Icon(Icons.access_time_rounded,
                                                 size: 14, color: CalendarTheme.textSecondary),
                                             const SizedBox(width: 6),
-                                            Text(
-                                              _endTime.format(context),
-                                              style: const TextStyle(
-                                                  color: CalendarTheme.textPrimary, fontSize: 12),
+                                            Expanded(
+                                              child: Text(
+                                                _endTime.format(context),
+                                                overflow: TextOverflow.ellipsis,
+                                                style: const TextStyle(
+                                                    color: CalendarTheme.textPrimary, fontSize: 12),
+                                              ),
                                             ),
                                           ],
                                         ),
@@ -524,59 +538,88 @@ class _CalendarEventDialogState extends ConsumerState<CalendarEventDialog> {
                 const Divider(height: 1, color: CalendarTheme.borderSubtle),
                 const SizedBox(height: 14),
 
-                // ── Botones de Acción ──
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    if (isEditing)
-                      TextButton.icon(
-                        onPressed: _isLoading ? null : _deleteEvent,
-                        icon: const Icon(Icons.delete_outline_rounded,
-                            size: 16, color: Color(0xFFEF4444)),
-                        label: const Text(
-                          'Eliminar',
-                          style: TextStyle(color: Color(0xFFEF4444), fontSize: 12),
-                        ),
-                      )
-                    else
-                      const SizedBox.shrink(),
-                    Row(
-                      children: [
-                        TextButton(
-                          onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
-                          child: const Text(
-                            'Cancelar',
-                            style: TextStyle(color: CalendarTheme.textSecondary, fontSize: 12),
+                // ── Botones de Acción Adaptables (C1) ──
+                SizedBox(
+                  width: double.infinity,
+                  child: Wrap(
+                    alignment:
+                        isEditing ? WrapAlignment.spaceBetween : WrapAlignment.end,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      if (isEditing)
+                        TextButton.icon(
+                          onPressed: _isLoading ? null : _deleteEvent,
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 8),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          icon: const Icon(Icons.delete_outline_rounded,
+                              size: 16, color: Color(0xFFEF4444)),
+                          label: const Text(
+                            'Eliminar',
+                            style: TextStyle(
+                                color: Color(0xFFEF4444), fontSize: 12),
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        ElevatedButton(
-                          onPressed: _isLoading ? null : _saveEvent,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: CalendarTheme.accent,
-                            foregroundColor: const Color(0xFF111318),
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(6),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          TextButton(
+                            onPressed: _isLoading
+                                ? null
+                                : () => Navigator.of(context).pop(),
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 8),
+                              minimumSize: Size.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            child: const Text(
+                              'Cancelar',
+                              style: TextStyle(
+                                  color: CalendarTheme.textSecondary,
+                                  fontSize: 12),
                             ),
                           ),
-                          child: _isLoading
-                              ? const SizedBox(
-                                  width: 14,
-                                  height: 14,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
-                                )
-                              : Text(
-                                  isEditing ? 'Guardar Cambios' : 'Crear Evento',
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
+                          ElevatedButton(
+                            key: const Key('calendar_save_event_button'),
+                            onPressed: _isLoading ? null : _saveEvent,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: CalendarTheme.accent,
+                              foregroundColor: const Color(0xFF111318),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 10),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                            ),
+                            child: _isLoading
+                                ? const SizedBox(
+                                    width: 14,
+                                    height: 14,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2),
+                                  )
+                                : Text(
+                                    isEditing
+                                        ? 'Guardar Cambios'
+                                        : 'Crear Evento',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
-                                ),
-                        ),
-                      ],
-                    ),
-                  ],
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),

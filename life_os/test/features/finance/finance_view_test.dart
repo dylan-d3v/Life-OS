@@ -143,5 +143,51 @@ void main() {
     expect(find.text('Categoría'), findsOneWidget);
     expect(find.text('Registrar'), findsOneWidget);
   });
+
+  testWidgets(
+      'FinanceView en móvil (360x780) muestra títulos de categorías largas en layout vertical legible sin truncar a 1 línea (D1, D2)',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(360, 780));
+    tester.view.physicalSize = const Size(360, 780);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() async {
+      await tester.binding.setSurfaceSize(null);
+      tester.view.resetPhysicalSize();
+    });
+
+    final tx = FinanceTransactionItem(
+      id: 'tx-long-1',
+      type: TransactionType.expense,
+      amount: 128.50,
+      category: 'Equipamiento Electrónico y Sensores I2S para Prototipo',
+      notes: 'Compra de micrófonos INMP441, amplificadores MAX98357A y cables dupont',
+      transactionDate: DateTime(2026, 11, 20),
+      createdAt: DateTime(2026, 11, 20),
+      updatedAt: DateTime(2026, 11, 20),
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          financeTransactionListProvider
+              .overrideWith(() => MockFinanceTransactionListNotifier([tx])),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(body: FinanceView()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Equipamiento Electrónico y Sensores I2S para Prototipo'),
+      findsOneWidget,
+    );
+    expect(
+      find.text(
+          'Compra de micrófonos INMP441, amplificadores MAX98357A y cables dupont'),
+      findsOneWidget,
+    );
+  });
 }
 

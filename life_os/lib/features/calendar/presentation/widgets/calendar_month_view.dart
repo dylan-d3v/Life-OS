@@ -268,30 +268,37 @@ class _MonthDayCell extends StatelessWidget {
                           left: BorderSide(color: catColor, width: 2.5),
                         ),
                       ),
-                      child: Row(
-                        children: [
-                          Text(
-                            timeStr,
-                            style: TextStyle(
-                              color: catColor,
-                              fontSize: 9,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              event.title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: CalendarTheme.textPrimary,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w500,
+                      child: LayoutBuilder(
+                        builder: (context, pillConstraints) {
+                          final showTime = pillConstraints.maxWidth >= 64;
+                          return Row(
+                            children: [
+                              if (showTime) ...[
+                                Text(
+                                  timeStr,
+                                  style: TextStyle(
+                                    color: catColor,
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                              ],
+                              Expanded(
+                                child: Text(
+                                  event.title,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: CalendarTheme.textPrimary,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
                               ),
-                            ),
-                          ),
-                        ],
+                            ],
+                          );
+                        },
                       ),
                     ),
                   );
