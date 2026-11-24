@@ -6,6 +6,7 @@ import '../../calendar/presentation/calendar_view.dart';
 import '../../finance/presentation/finance_view.dart';
 import '../../notes/presentation/notes_view.dart';
 import '../../projects/presentation/projects_view.dart';
+import '../../settings/presentation/settings_provider.dart';
 import '../../settings/presentation/settings_view.dart';
 import '../../tasks/presentation/tasks_view.dart';
 import 'navigation_provider.dart';
@@ -23,6 +24,7 @@ class MobileScaffold extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final activeSection = ref.watch(activeSectionProvider);
+    final appSettings = ref.watch(appSettingsProvider);
 
     // Mapeo del índice de navegación inferior (0: Hoy, 1: Tareas, 2: Notas, 3: Finanzas, 4: Más)
     final selectedIndex = switch (activeSection) {
@@ -115,34 +117,37 @@ class MobileScaffold extends ConsumerWidget {
         ),
       ),
       // ── Botón Flotante de Captura Rápida (Kev AI) ──
-      floatingActionButton: FloatingActionButton(
-        key: const Key('kev_mobile_fab'),
-        onPressed: () => showKevCommandBar(context),
-        backgroundColor: const Color(0xFF818CF8),
-        foregroundColor: Colors.white,
-        elevation: 6,
-        tooltip: 'Asistente Kev (Captura rápida)',
-        child: Container(
-          width: 56,
-          height: 56,
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF818CF8), Color(0xFF6366F1)],
-            ),
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF818CF8).withValues(alpha: 0.4),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
+      floatingActionButton: appSettings.kevFabVisible
+          ? FloatingActionButton(
+              key: const Key('kev_mobile_fab'),
+              onPressed: () => showKevCommandBar(context),
+              backgroundColor: const Color(0xFF818CF8),
+              foregroundColor: Colors.white,
+              elevation: 6,
+              tooltip: 'Asistente Kev (Captura rápida)',
+              child: Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0xFF818CF8), Color(0xFF6366F1)],
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF818CF8).withValues(alpha: 0.4),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: const Icon(Icons.auto_awesome,
+                    size: 26, color: Colors.white),
               ),
-            ],
-          ),
-          child: const Icon(Icons.auto_awesome, size: 26, color: Colors.white),
-        ),
-      ),
+            )
+          : null,
       // ── Barra de Navegación Inferior M3 ──
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(

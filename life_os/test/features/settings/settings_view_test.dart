@@ -67,5 +67,14 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('revealed_master_password')), findsNothing);
+
+    // Fase 4 (F1 + G1): Verificar secciones de Kev IA y Respaldo de Datos en SettingsView
+    expect(find.text('Asistente Inteligente Kev'), findsOneWidget);
+    expect(find.byKey(const Key('kev_fab_visible_switch')), findsOneWidget);
+    expect(find.byKey(const Key('reset_kev_onboarding_button')), findsOneWidget);
+
+    expect(find.text('Respaldo y Soberanía de Datos'), findsOneWidget);
+    expect(find.byKey(const Key('export_backup_button')), findsOneWidget);
+    expect(find.byKey(const Key('open_import_backup_dialog_button')), findsOneWidget);
   });
 }

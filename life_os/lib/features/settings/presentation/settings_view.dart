@@ -1,8 +1,18 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/backup/backup_service.dart';
 import '../../../core/providers/crypto_providers.dart';
+import '../../ai/presentation/ai_providers.dart';
+import '../../ai/presentation/kev_command_bar_controller.dart';
 import '../../auth/presentation/auth_controller.dart';
+import '../../calendar/presentation/calendar_provider.dart';
+import '../../finance/presentation/finance_provider.dart';
+import '../../notes/presentation/notes_provider.dart';
+import '../../projects/presentation/projects_provider.dart';
+import '../../tasks/presentation/tasks_provider.dart';
+import 'settings_provider.dart';
 
 class SettingsView extends ConsumerStatefulWidget {
   const SettingsView({super.key});
@@ -13,6 +23,9 @@ class SettingsView extends ConsumerStatefulWidget {
 
 class _SettingsViewState extends ConsumerState<SettingsView> {
   bool _showSavedKey = false;
+  bool _encryptBackup = true;
+  bool _isExporting = false;
+  String? _lastBackupStatusMessage;
 
   void _copyToClipboard(String label, String value) {
     Clipboard.setData(ClipboardData(text: value));
@@ -26,10 +39,319 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
     );
   }
 
+  Future<void> _handleExportBackup() async {
+    final vault = ref.read(keyVaultServiceProvider);
+    if (!vault.isUnlocked) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Desbloquea primero la bóveda para exportar tus datos.'),
+          backgroundColor: Color(0xFFEF4444),
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isExporting = true);
+    try {
+      final backupService = ref.read(backupServiceProvider);
+      final bundle = ref.read(currentAccountBackupBundleProvider);
+      final jsonContent = await backupService.exportBackupToJson(
+        bundle: bundle,
+        encrypt: _encryptBackup,
+        customPassword: vault.activeMasterPassword,
+      );
+
+      await Clipboard.setData(ClipboardData(text: jsonContent));
+      String savedPath = 'Portapapeles';
+      try {
+        final file = await backupService.saveBackupToFile(jsonContent);
+        savedPath = file.path;
+      } catch (_) {}
+
+      if (!mounted) return;
+      setState(() {
+        _isExporting = false;
+        _lastBackupStatusMessage =
+            'Respaldo exportado (${bundle.totalRecords} registros, ${_encryptBackup ? "Cifrado AES-256-GCM" : "JSON en claro"}). Guardado en: $savedPath y copiado al portapapeles.';
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Respaldo generado (${bundle.totalRecords} registros) y copiado al portapapeles.',
+          ),
+          backgroundColor: const Color(0xFF059669),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isExporting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al exportar respaldo: $e'),
+          backgroundColor: const Color(0xFFEF4444),
+        ),
+      );
+    }
+  }
+
+  void _showImportBackupDialog() {
+    final jsonController = TextEditingController();
+    final passwordController = TextEditingController();
+    final filePathController = TextEditingController();
+    String? dialogError;
+    bool isImporting = false;
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            Future<void> runImport() async {
+              setDialogState(() {
+                dialogError = null;
+                isImporting = true;
+              });
+
+              try {
+                String rawJson = jsonController.text.trim();
+                final pathText = filePathController.text.trim();
+                if (rawJson.isEmpty && pathText.isNotEmpty) {
+                  final file = File(pathText);
+                  if (!await file.exists()) {
+                    throw const FormatException(
+                      'No se encontró ningún archivo en la ruta indicada.',
+                    );
+                  }
+                  rawJson = await file.readAsString();
+                }
+
+                if (rawJson.isEmpty) {
+                  throw const FormatException(
+                    'Pega el contenido JSON del respaldo o indica la ruta del archivo.',
+                  );
+                }
+
+                final backupService = ref.read(backupServiceProvider);
+                final parsedBundle = await backupService.validateAndParseBackup(
+                  rawJson: rawJson,
+                  customPassword: passwordController.text.trim().isNotEmpty
+                      ? passwordController.text.trim()
+                      : null,
+                );
+
+                final existingBundle =
+                    ref.read(currentAccountBackupBundleProvider);
+                final summary = await backupService.importBackupToSupabase(
+                  incoming: parsedBundle,
+                  existingInMemory: existingBundle,
+                );
+
+                // Refrescar proveedores para reflejar datos importados
+                ref.invalidate(projectListProvider);
+                ref.invalidate(taskListProvider);
+                ref.invalidate(noteListProvider);
+                ref.invalidate(calendarEventListProvider);
+                ref.invalidate(financeTransactionListProvider);
+                ref.invalidate(dailyBriefingProvider);
+
+                if (!ctx.mounted) return;
+                Navigator.of(ctx).pop();
+
+                if (!mounted) return;
+                setState(() {
+                  _lastBackupStatusMessage =
+                      'Importación exitosa: ${summary.totalProcessed} registros procesados (${summary.updatedExistingCount} actualizados sin duplicar).';
+                });
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Respaldo importado con éxito (${summary.totalProcessed} registros verificados).',
+                    ),
+                    backgroundColor: const Color(0xFF059669),
+                  ),
+                );
+              } catch (e) {
+                setDialogState(() {
+                  isImporting = false;
+                  dialogError = e.toString();
+                });
+              }
+            }
+
+            return Dialog(
+              backgroundColor: const Color(0xFF1E293B),
+              insetPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: const BorderSide(color: Color(0xFF334155)),
+              ),
+              child: ConstrainedBox(
+                constraints:
+                    const BoxConstraints(maxWidth: 520, maxHeight: 620),
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Expanded(
+                            child: Text(
+                              'Importar Respaldo Verificado',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close,
+                                size: 18, color: Color(0xFF94A3B8)),
+                            onPressed: () => Navigator.of(ctx).pop(),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Se verificará la firma SHA-256 y autenticidad AES-256-GCM antes de fusionar por UUID (sin duplicar registros existentes).',
+                        style:
+                            TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
+                      ),
+                      const SizedBox(height: 14),
+                      Flexible(
+                        child: SingleChildScrollView(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              TextField(
+                                key: const Key('import_backup_filepath_field'),
+                                controller: filePathController,
+                                style: const TextStyle(
+                                    color: Colors.white, fontSize: 12),
+                                decoration: InputDecoration(
+                                  labelText:
+                                      'Ruta de archivo local (.lifeos.json) — Opcional',
+                                  labelStyle: const TextStyle(
+                                      color: Color(0xFF94A3B8), fontSize: 12),
+                                  filled: true,
+                                  fillColor: const Color(0xFF0F172A),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    borderSide: const BorderSide(
+                                        color: Color(0xFF334155)),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              TextField(
+                                key: const Key('import_backup_json_field'),
+                                controller: jsonController,
+                                maxLines: 5,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontFamily: 'monospace',
+                                ),
+                                decoration: InputDecoration(
+                                  labelText:
+                                      'O pega aquí el contenido JSON del respaldo',
+                                  labelStyle: const TextStyle(
+                                      color: Color(0xFF94A3B8), fontSize: 12),
+                                  filled: true,
+                                  fillColor: const Color(0xFF0F172A),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    borderSide: const BorderSide(
+                                        color: Color(0xFF334155)),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              TextField(
+                                key: const Key('import_backup_password_field'),
+                                controller: passwordController,
+                                obscureText: true,
+                                autocorrect: false,
+                                enableSuggestions: false,
+                                style: const TextStyle(
+                                    color: Colors.white, fontSize: 12),
+                                decoration: InputDecoration(
+                                  labelText:
+                                      'Contraseña del respaldo (si proviene de otra cuenta)',
+                                  labelStyle: const TextStyle(
+                                      color: Color(0xFF94A3B8), fontSize: 12),
+                                  filled: true,
+                                  fillColor: const Color(0xFF0F172A),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    borderSide: const BorderSide(
+                                        color: Color(0xFF334155)),
+                                  ),
+                                ),
+                              ),
+                              if (dialogError != null) ...[
+                                const SizedBox(height: 10),
+                                Text(
+                                  dialogError!,
+                                  style: const TextStyle(
+                                    color: Color(0xFFEF4444),
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      Wrap(
+                        alignment: WrapAlignment.end,
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          TextButton(
+                            onPressed: isImporting
+                                ? null
+                                : () => Navigator.of(ctx).pop(),
+                            child: const Text('Cancelar'),
+                          ),
+                          ElevatedButton.icon(
+                            key: const Key('confirm_import_backup_button'),
+                            onPressed: isImporting ? null : runImport,
+                            icon: const Icon(Icons.download_done_rounded,
+                                size: 16),
+                            label: const Text('Validar e Importar'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF0284C7),
+                              foregroundColor: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final vault = ref.watch(keyVaultServiceProvider);
     final authRepo = ref.watch(authRepositoryProvider);
+    final appSettings = ref.watch(appSettingsProvider);
+    final currentBundle = ref.watch(currentAccountBackupBundleProvider);
     final user = authRepo.currentUser;
     final masterPassword = vault.activeMasterPassword;
     final derivedKeyBase64 = vault.activeDerivedKeyBase64;
@@ -50,13 +372,15 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
             ),
             const SizedBox(height: 4),
             const Text(
-              'Configuración de seguridad, cuenta y estado de la sincronización',
+              'Configuración de seguridad, asistente Kev, respaldos y sesión',
               style: TextStyle(
                 color: Color(0xFF94A3B8),
                 fontSize: 14,
               ),
             ),
             const SizedBox(height: 24),
+
+            // ── 1. BÓVEDA CRIPTOGRÁFICA Y SESIÓN ──
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
@@ -333,6 +657,266 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
               ),
             ),
             const SizedBox(height: 20),
+
+            // ── 2. CONFIGURACIÓN DEL ASISTENTE KEV IA (F1 Parte 1 & A1) ──
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1E293B),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFF334155)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.auto_awesome,
+                          size: 18, color: Color(0xFF818CF8)),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Asistente Inteligente Kev',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Botón flotante de Kev siempre disponible (24/7)',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            SizedBox(height: 2),
+                            Text(
+                              'Mantiene visible el botón rápido de Kev en las vistas móviles.',
+                              style: TextStyle(
+                                color: Color(0xFF94A3B8),
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Switch(
+                        key: const Key('kev_fab_visible_switch'),
+                        value: appSettings.kevFabVisible,
+                        activeTrackColor: const Color(0xFF6366F1),
+                        onChanged: (val) {
+                          ref
+                              .read(appSettingsProvider.notifier)
+                              .setKevFabVisible(val);
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  const Divider(color: Color(0xFF334155), height: 1),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 8,
+                    alignment: WrapAlignment.spaceBetween,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      const Text(
+                        'Volver a mostrar la guía de sugerencias al abrir Kev',
+                        style: TextStyle(color: Color(0xFFCBD5E1), fontSize: 13),
+                      ),
+                      OutlinedButton.icon(
+                        key: const Key('reset_kev_onboarding_button'),
+                        onPressed: () async {
+                          await ref
+                              .read(kevCommandBarProvider.notifier)
+                              .resetOnboarding();
+                          if (!context.mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Guía de sugerencias de Kev restablecida.',
+                              ),
+                              backgroundColor: Color(0xFF6366F1),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.restore_rounded, size: 16),
+                        label: const Text('Restablecer Sugerencias'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFF818CF8),
+                          side: const BorderSide(color: Color(0xFF334155)),
+                          textStyle: const TextStyle(fontSize: 12),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // ── 3. RESPALDO, EXPORTACIÓN E IMPORTACIÓN DE DATOS (G1) ──
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1E293B),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFF334155)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.cloud_download_outlined,
+                          size: 18, color: Color(0xFF38BDF8)),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Respaldo y Soberanía de Datos',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Descarga o restaura tus datos con verificación de integridad SHA-256. Registros actuales en sesión: ${currentBundle.totalRecords} (${currentBundle.projects.length} proyectos, ${currentBundle.tasks.length} tareas, ${currentBundle.notes.length} notas, ${currentBundle.calendarEvents.length} eventos, ${currentBundle.financeTransactions.length} finanzas).',
+                    style:
+                        const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Cifrar archivo de respaldo con AES-256-GCM (Recomendado)',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            SizedBox(height: 2),
+                            Text(
+                              'Protege el archivo con tu contraseña maestra para que nadie pueda leerlo fuera de Life-OS.',
+                              style: TextStyle(
+                                color: Color(0xFF94A3B8),
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Switch(
+                        key: const Key('encrypt_backup_switch'),
+                        value: _encryptBackup,
+                        activeTrackColor: const Color(0xFF059669),
+                        onChanged: (val) =>
+                            setState(() => _encryptBackup = val),
+                      ),
+                    ],
+                  ),
+                  if (!_encryptBackup) ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0x22F59E0B),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0x66F59E0B)),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.warning_amber_rounded,
+                              size: 16, color: Color(0xFFFBBF24)),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Advertencia: Al desactivar el cifrado, el archivo JSON contendrá tu información personal en texto legible.',
+                              style: TextStyle(
+                                  color: Color(0xFFFBBF24), fontSize: 12),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 16),
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 10,
+                    children: [
+                      ElevatedButton.icon(
+                        key: const Key('export_backup_button'),
+                        onPressed: _isExporting ? null : _handleExportBackup,
+                        icon: const Icon(Icons.upload_file_rounded, size: 17),
+                        label: Text(
+                          _isExporting
+                              ? 'Exportando...'
+                              : 'Exportar Respaldo de Cuenta',
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF0284C7),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 12),
+                        ),
+                      ),
+                      OutlinedButton.icon(
+                        key: const Key('open_import_backup_dialog_button'),
+                        onPressed: _showImportBackupDialog,
+                        icon: const Icon(Icons.restore_page_outlined, size: 17),
+                        label: const Text('Importar Respaldo'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFF38BDF8),
+                          side: const BorderSide(color: Color(0xFF334155)),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 12),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (_lastBackupStatusMessage != null) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      _lastBackupStatusMessage!,
+                      key: const Key('backup_status_message'),
+                      style: const TextStyle(
+                        color: Color(0xFF34D399),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+
             ElevatedButton.icon(
               onPressed: () {
                 ref.read(authControllerProvider.notifier).signOut();
